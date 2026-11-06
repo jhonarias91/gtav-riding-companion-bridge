@@ -8,9 +8,19 @@ This repository holds everything that runs on the PC. The phone app is in a sepa
 
 > Unofficial community project. Not affiliated with GTBike V, Rockstar Games, Zwift or Garmin. It does **not** include, modify or redistribute `GTBikeV.dll`; it adds a separate ScriptHookVDotNet script that talks to the mod already installed on your PC.
 
+## Install on the PC
+
+Download the Windows installer (Windows 10/11, 64-bit). [Download GTAVRidingCompanion-Setup.exe](https://github.com/jhonarias91/gtav-riding-companion-bridge/releases/latest/download/GTAVRidingCompanion-Setup.exe) · [All PC releases](https://github.com/jhonarias91/gtav-riding-companion-bridge/releases)
+
+1. Close GTA V and run `GTAVRidingCompanion-Setup.exe`. The installer is not signed, so Windows SmartScreen may warn: choose **More info** → **Run anyway**.
+2. In the **Setup** tab, check the GTA V folder (it is found automatically) and press **Install**. Windows asks once for administrator permission.
+3. Open the **Phone** tab and scan the QR code with the Android app.
+
+You need GTBike V 0.8.0.4 with ScriptHookV and ScriptHookVDotNet 3 already installed, and .NET Framework 4.8 (included in Windows 10/11). Node.js is bundled. Details are in [Quick start](#quick-start).
+
 ## Install the Android app
 
-Download the APK on your phone (Android 8.0 or later). [Download APK](https://github.com/jhonarias91/gtav-riding-companion-android/releases/download/v0.6.0-p13/gtav-riding-companion.apk) · [View release v0.6.0-p13](https://github.com/jhonarias91/gtav-riding-companion-android/releases/tag/v0.6.0-p13)
+Download the APK on your phone (Android 8.0 or later). [Download APK](https://github.com/jhonarias91/gtav-riding-companion-android/releases/latest/download/gtav-riding-companion.apk) · [All Android releases](https://github.com/jhonarias91/gtav-riding-companion-android/releases)
 
 1. Open `gtav-riding-companion.apk` from your downloads.
 2. If Android asks for permission to install unknown apps, tap **Settings** and enable **Allow from this source** for the browser or file manager that opened the APK.
@@ -53,7 +63,7 @@ GTBikeV.dll 0.8.0.4 → ANT+ / Bluetooth sensors, the trainer and the game
 
 ### Windows installer (recommended)
 
-With GTA V closed, run `outputs\release\GTAVRidingCompanion-Setup.exe`. The **Setup** tab finds the GTA V folder by itself (Steam, Rockstar launcher or Epic; use **Browse…** otherwise) and checks ScriptHookVDotNet3, GTBike V 0.8.0.4 and that the game is closed. Press **Install** and accept the Windows administrator prompt: the installer compiles the adapter against your ScriptHookVDotNet copy, installs it (keeping the three newest backups) and creates a Private/local-subnet firewall rule for the bundled runtime. The installed copy then opens by itself. It adds Start menu and optional desktop shortcuts **GTAV Riding Companion**, and an entry in Windows **Apps & features** for uninstalling. Running a newer setup offers **Update**, and **Uninstall…** removes the adapter, the firewall rule, the shortcuts and the app files but keeps your pairings and rides.
+With GTA V closed, run `GTAVRidingCompanion-Setup.exe` ([download the latest](https://github.com/jhonarias91/gtav-riding-companion-bridge/releases/latest/download/GTAVRidingCompanion-Setup.exe), or build it as described below). The **Setup** tab finds the GTA V folder by itself (Steam, Rockstar launcher or Epic; use **Browse…** otherwise) and checks ScriptHookVDotNet3, GTBike V 0.8.0.4 and that the game is closed. Press **Install** and accept the Windows administrator prompt: the installer compiles the adapter against your ScriptHookVDotNet copy, installs it (keeping the three newest backups) and creates a Private/local-subnet firewall rule for the bundled runtime. The installed copy then opens by itself. It adds Start menu and optional desktop shortcuts **GTAV Riding Companion**, and an entry in Windows **Apps & features** for uninstalling. Running a newer setup offers **Update**, and **Uninstall…** removes the adapter, the firewall rule, the shortcuts and the app files but keeps your pairings and rides.
 
 The window has these tabs:
 

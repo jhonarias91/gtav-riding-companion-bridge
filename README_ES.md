@@ -8,9 +8,19 @@ Este repositorio contiene los componentes que se ejecutan en el PC. La app para 
 
 > Proyecto comunitario no oficial y sin afiliación con GTBike V, Rockstar Games, Zwift ni Garmin. **No** incluye, modifica ni redistribuye `GTBikeV.dll`: añade un script independiente de ScriptHookVDotNet que se comunica con el mod que ya tienes instalado en tu PC.
 
+## Instala en el PC
+
+Descarga el instalador para Windows (Windows 10/11 de 64 bits). [Descargar GTAVRidingCompanion-Setup.exe](https://github.com/jhonarias91/gtav-riding-companion-bridge/releases/latest/download/GTAVRidingCompanion-Setup.exe) · [Todas las versiones para PC](https://github.com/jhonarias91/gtav-riding-companion-bridge/releases)
+
+1. Cierra GTA V y ejecuta `GTAVRidingCompanion-Setup.exe`. El instalador no está firmado, así que Windows SmartScreen puede avisar: elige **Más información** → **Ejecutar de todas formas**.
+2. En la pestaña **Setup**, revisa la carpeta de GTA V (se detecta sola) y pulsa **Install**. Windows pide permiso de administrador una vez.
+3. Abre la pestaña **Phone** y escanea el código QR con la app Android.
+
+Necesitas GTBike V 0.8.0.4 con ScriptHookV y ScriptHookVDotNet 3 ya instalados, y .NET Framework 4.8 (incluido en Windows 10/11). Node.js va incluido. Más detalles en [Inicio rápido](#inicio-rápido).
+
 ## Instala la app de Android
 
-Descarga el APK en tu teléfono con Android 8.0 o posterior. [Descargar APK](https://github.com/jhonarias91/gtav-riding-companion-android/releases/download/v0.6.0-p13/gtav-riding-companion.apk) · [Ver release v0.6.0-p13](https://github.com/jhonarias91/gtav-riding-companion-android/releases/tag/v0.6.0-p13)
+Descarga el APK en tu teléfono con Android 8.0 o posterior. [Descargar APK](https://github.com/jhonarias91/gtav-riding-companion-android/releases/latest/download/gtav-riding-companion.apk) · [Todas las versiones de Android](https://github.com/jhonarias91/gtav-riding-companion-android/releases)
 
 1. Abre `gtav-riding-companion.apk` desde tus descargas.
 2. Si Android te pide permiso para instalar apps de orígenes desconocidos, toca **Ajustes** y activa **Permitir desde esta fuente** para el navegador o gestor de archivos con el que abriste el APK.
@@ -53,17 +63,26 @@ GTBikeV.dll 0.8.0.4 → sensores ANT+ y Bluetooth, el rodillo y el juego
 
 ### Instalador para Windows (recomendado)
 
-Con GTA V cerrado, ejecuta `outputs\release\GTAVRidingCompanion-Setup.exe`. Selecciona la carpeta principal del juego, donde está `ScriptHookVDotNet3.dll`; GTBike V 0.8.0.4 ya debe estar en `scripts`. Acepta la solicitud de administrador de Windows: el instalador compila el adaptador para tu copia de ScriptHookVDotNet, guarda un respaldo si había otro, lo instala y crea una regla de firewall limitada a la red privada y la subred local para el runtime incluido. Luego aparece la ventana del puente con el QR, dirección, puerto, identidad, huella de clave, código manual y teléfonos vinculados. Escanea el QR con la app Android. El acceso directo **GTAV Riding Companion Bridge** del menú Inicio abre la ventana más adelante. Déjala abierta durante el recorrido.
+Con GTA V cerrado, ejecuta `GTAVRidingCompanion-Setup.exe` ([descarga la última versión](https://github.com/jhonarias91/gtav-riding-companion-bridge/releases/latest/download/GTAVRidingCompanion-Setup.exe) o genéralo como se explica abajo). La pestaña **Setup** encuentra sola la carpeta de GTA V (Steam, Rockstar Launcher o Epic; si no, usa **Browse…**) y comprueba ScriptHookVDotNet3, GTBike V 0.8.0.4 y que el juego esté cerrado. Pulsa **Install** y acepta la solicitud de administrador de Windows: el instalador compila el adaptador para tu copia de ScriptHookVDotNet, lo instala (conserva las tres copias de seguridad más recientes) y crea una regla de firewall limitada a la red privada y la subred local para el runtime incluido. Después se abre sola la copia instalada. Añade accesos directos **GTAV Riding Companion** en el menú Inicio y, si quieres, en el escritorio, y una entrada en **Aplicaciones instaladas** de Windows para desinstalar. Al ejecutar un instalador más nuevo aparece **Update**, y **Uninstall…** quita el adaptador, la regla de firewall, los accesos directos y los archivos de la app, pero conserva tus vinculaciones y tus actividades.
 
-Para generar el instalador desde el código en Windows:
+La ventana (en inglés) tiene estas pestañas:
+
+- **Phone**: código QR, código de vinculación manual, dirección, identidad del puente, huella de la clave y teléfonos vinculados. Déjala abierta mientras pedaleas.
+- **Mod**: activar o desactivar GTBike V, perfil del ciclista, ajustes de pedaleo, bicicleta y personaje (las mismas opciones que la app Android) y un mapa en vivo con tu posición y el recorrido cargado. Rueda del ratón para acercar, arrastrar para mover, doble clic para acercar y clic derecho para copiar coordenadas. La imagen del mapa no va en el instalador: la primera vez pulsa **Download map (15 MB)**; se guarda en `%LOCALAPPDATA%\GTBikeVCompanion\map` y se comprueba (tamaño y dimensiones) contra la calibración de `installer\resources\gta-map.calibration.json` antes de usarla.
+- **Routes**: buscar en el catálogo de recorridos, ver detalles, elegir vuelta o sentido inverso, **Apply route**, **Free ride** o **Show in game** (abre el selector de recorridos de GTBike V en esa ruta), con los mismos avisos que el teléfono, incluido reiniciar un entrenamiento en curso.
+- **Training**: planes y entrenamientos con su perfil de potencia, el entrenamiento en curso en el juego y **Select and start**. Pausar, saltar, terminar y ERG se hacen en el juego.
+- **Sensors**: qué dispositivo usa GTBike V para cada función y su regla (Auto, Lock, Skip), y desconectar un sensor Bluetooth. Buscar un sensor Bluetooth nuevo se hace desde la app del teléfono.
+- **Activities**: salidas guardadas con su resumen y gráfico de potencia, **Show file in folder** y **Save current activity**.
+- **Game options**: las opciones de configuración de gtbikev.com que gestiona esta app (tráfico, público animando, bots del recorrido, autodefensa, sensibilidad de giro con teclas, puntos de paso, capturas, menú, reloj, paneles de depuración, nivel de registro, origen GPS, telemetría y multijugador). Se escriben en `GTBikeVConfig.ini` de GTBike V solo con GTA V cerrado (GTBike V reescribe ese archivo mientras está abierto), con una copia de seguridad en `%LOCALAPPDATA%\GTBikeVCompanion\bridge-v1\mod-config-backups`, y se aplican la próxima vez que inicie el juego. No se exponen asignaciones de teclas, identificadores de dispositivos ni direcciones de servidores. La app Android tiene la misma pantalla en **Más → Opciones del juego**.
+- **Setup**: instalar, actualizar, reparar, desinstalar y abrir la carpeta de la app o el registro del adaptador.
+
+Para generar el instalador desde el código en Windows, haz doble clic en `build-installer.cmd` o ejecuta:
 
 ```powershell
-npm ci
-npm test
-.\installer\Build-Installer.ps1
+npm run build:installer
 ```
 
-La compilación necesita Node.js 22.2+, el compilador de .NET Framework de 64 bits y conexión a internet para descargar la licencia de la versión de Node.js incluida. El `.exe` resultante queda en `outputs\release`. No incluye ni redistribuye GTBike V ni ScriptHookVDotNet. La ventana reserva una pestaña para configurar el mod en el futuro; esos controles aún no están implementados.
+Este único paso instala las dependencias cuando hace falta (`npm ci`), ejecuta las pruebas, empaqueta el puente y compila `outputs\release\GTAVRidingCompanion-Setup.exe` (más un `.sha256.txt`). Opciones: `.\build-installer.cmd -SkipTests` para recompilar más rápido y `-Clean` para reinstalar `node_modules`. Necesita Node.js 22.2+ y el compilador de .NET Framework 4.8 de 64 bits. La primera compilación con cada versión de Node.js descarga su licencia y la guarda en `outputs\cache`; después funciona sin conexión. El ejecutable no incluye ni redistribuye GTBike V ni ScriptHookVDotNet.
 
 ### Desde el código fuente
 
