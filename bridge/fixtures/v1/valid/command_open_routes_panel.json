@@ -1,0 +1,9 @@
+{
+  "requestId": "1e6b7a4d-8c9f-4e0a-9b2c-6d7e8f9a0b1c",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "ui.openPanel",
+  "expectedRevision": null,
+  "args": {
+    "panel": "routes"
+  }
+}

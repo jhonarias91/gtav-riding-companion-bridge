@@ -1,0 +1,29 @@
+{
+  "adapterInstanceId": "adapter-5b1d",
+  "sequence": 4217,
+  "stateRevision": "state-12",
+  "capturedAtUtc": "2026-11-04T15:00:00.250Z",
+  "snapshotAgeMs": 7400,
+  "sessionGeneration": "session-3",
+  "modVersion": "0.8.0.4",
+  "bindingProfile": "gtbikev-0804",
+  "layers": {"adapter":"stale","binding":"compatible","mod":"unknown","antReceiver":"unknown","bleReceiver":"unknown","gameControl":"unknown"},
+  "sport": "cycling",
+  "metrics": {
+    "powerW": {"value":185,"quality":"stale","source":"ANT"},
+    "speedMps": {"value":8.5,"quality":"stale","source":"virtual"},
+    "cadenceRpm": {"value":88,"quality":"stale","source":"ANT"},
+    "heartRateBpm": {"value":134,"quality":"stale","source":"BLE"},
+    "distanceM": {"value":1050.4,"quality":"stale","source":"game"},
+    "ridingTimeMs": {"value":180000,"quality":"stale","source":"game"},
+    "movingTimeMs": {"value":176000,"quality":"stale","source":"game"},
+    "elevationGainM": {"value":12.4,"quality":"stale","source":"game"},
+    "elevationLossM": {"value":3.1,"quality":"stale","source":"game"},
+    "slopeFraction": {"value":0.021,"quality":"stale","source":"game"},
+    "windSpeedMps": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_STALE"},
+    "windDirRad": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_STALE"}
+  },
+  "sensors": [],
+  "workout": {"present":null,"finished":null},
+  "activeRoute": null
+}

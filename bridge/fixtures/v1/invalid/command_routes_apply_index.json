@@ -1,0 +1,11 @@
+{
+  "requestId": "6f1c2b9e-3d4a-4f5b-8c7d-1e2f3a4b5c6d",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "routes.apply",
+  "expectedRevision": "catalog-3f2a",
+  "args": {
+    "index": 3,
+    "loop": true,
+    "reverse": false
+  }
+}

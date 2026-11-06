@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/activities.schema.json",
+  "title": "GET /api/v1/activities and GET /api/v1/activities/{id}",
+  "description": "P7. Only finished FIT files directly inside the mod's Activities folder (Config.UserActivitiesPath). Course FIT caches are never listed. Summaries come from the FIT session message (source fit-session); a missing field stays null and nothing is recomputed with today's FTP. The binary is GET /api/v1/activities/{id}/fit.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/page"
+    },
+    {
+      "$ref": "#/$defs/detail"
+    }
+  ],
+  "$defs": {
+    "activityId": {
+      "type": "string",
+      "pattern": "^a-[a-f0-9]{16}$"
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "fileName",
+        "modifiedUtc",
+        "sizeBytes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/activityId"
+        },
+        "fileName": {
+          "description": "Name only, never a path.",
+          "type": "string",
+          "pattern": "^[^\\\\/:*?\"<>|]{1,120}\\.[Ff][Ii][Tt]$"
+        },
+        "modifiedUtc": {
+          "$ref": "common.schema.json#/$defs/utcTimestamp"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20971520
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available",
+        "total",
+        "offset",
+        "items"
+      ],
+      "properties": {
+        "available": {
+          "description": "False when the Activities folder is unknown (adapter never reported it).",
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        }
+      }
+    },
+    "detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity"
+      ],
+      "properties": {
+        "activity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "fileName",
+            "sizeBytes",
+            "source",
+            "sport",
+            "startUtc",
+            "elapsedS",
+            "movingS",
+            "distanceM",
+            "ascentM",
+            "avgPowerW",
+            "maxPowerW",
+            "avgHeartRateBpm",
+            "maxHeartRateBpm",
+            "avgCadenceRpm",
+            "calories",
+            "power"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/activityId"
+            },
+            "fileName": {
+              "$ref": "#/$defs/item/properties/fileName"
+            },
+            "sizeBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "source": {
+              "enum": [
+                "fit-session"
+              ]
+            },
+            "sport": {
+              "enum": [
+                "cycling",
+                "running",
+                "rowing",
+                "unknown"
+              ]
+            },
+            "startUtc": {
+              "anyOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/utcTimestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "elapsedS": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "movingS": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "distanceM": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "ascentM": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "avgPowerW": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "maxPowerW": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "avgHeartRateBpm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "maxHeartRateBpm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "avgCadenceRpm": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "calories": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "power": {
+              "description": "Power from valid record messages, averaged per bucket; null buckets are real gaps. null when the file has no power.",
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "bucketS",
+                    "values"
+                  ],
+                  "properties": {
+                    "bucketS": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "values": {
+                      "type": "array",
+                      "maxItems": 600,
+                      "items": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

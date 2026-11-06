@@ -1,0 +1,13 @@
+{
+  "present": true,
+  "name": "X",
+  "started": true,
+  "inCountdown": false,
+  "finished": false,
+  "durationType": "time",
+  "elapsed": 1,
+  "total": 2,
+  "segmentCount": 1,
+  "segment": null,
+  "powerAdjust": 105
+}

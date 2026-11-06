@@ -1,0 +1,18 @@
+{
+  "devicesRevision": "devices-1a2b",
+  "reasonCode": null,
+  "roles": [
+    {
+      "role": "steering",
+      "visible": true,
+      "current": null,
+      "policy": "auto",
+      "entries": [],
+      "actions": {
+        "auto": false,
+        "lock": true,
+        "skip": true
+      }
+    }
+  ]
+}

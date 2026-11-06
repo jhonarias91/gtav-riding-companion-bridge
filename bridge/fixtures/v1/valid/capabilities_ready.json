@@ -1,0 +1,13 @@
+{
+  "modVersion": "0.8.0.4",
+  "bindingProfile": "gtbikev-0804",
+  "adapterInstanceId": "adapter-5b1d",
+  "capabilities": [
+    {"id":"metrics.read","available":true,"reasonCode":null,"helpId":"connection.status","applyMode":null},
+    {"id":"sensors.read","available":true,"reasonCode":null,"helpId":"devices.policy","applyMode":null},
+    {"id":"activity.read","available":true,"reasonCode":null,"helpId":"metrics.movingTime","applyMode":null},
+    {"id":"mod.setActive","available":true,"reasonCode":null,"helpId":"mod.activate","applyMode":"async","requirements":["GAME_IN_CONTROL"]},
+    {"id":"routes.apply","available":false,"reasonCode":"NOT_IMPLEMENTED_IN_BRIDGE","helpId":"routes.apply","applyMode":"async"},
+    {"id":"activities.finish","available":false,"reasonCode":"NOT_IMPLEMENTED_IN_BRIDGE","helpId":"activity.save","applyMode":"async"}
+  ]
+}

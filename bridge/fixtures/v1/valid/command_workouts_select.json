@@ -1,0 +1,9 @@
+{
+  "requestId": "5d0e1f2a-3b4c-4d5e-8f6a-7b8c9d0e1f2a",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "workouts.select",
+  "expectedRevision": "workouts-0123456789ab",
+  "args": {
+    "workoutId": "w-0123456789abcdef"
+  }
+}

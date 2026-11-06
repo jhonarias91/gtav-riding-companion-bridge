@@ -1,0 +1,29 @@
+{
+  "adapterInstanceId": "adapter-9e02",
+  "sequence": 3,
+  "stateRevision": "state-1",
+  "capturedAtUtc": "2026-11-04T15:00:00Z",
+  "snapshotAgeMs": 200,
+  "sessionGeneration": null,
+  "modVersion": "0.8.1.0",
+  "bindingProfile": null,
+  "layers": {"adapter":"fresh","binding":"incompatible","mod":"unknown","antReceiver":"unknown","bleReceiver":"unknown","gameControl":"unknown"},
+  "sport": "unknown",
+  "metrics": {
+    "powerW": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "speedMps": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "cadenceRpm": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "heartRateBpm": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "distanceM": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "ridingTimeMs": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "movingTimeMs": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "elevationGainM": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "elevationLossM": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "slopeFraction": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "windSpeedMps": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"},
+    "windDirRad": {"value":null,"quality":"unavailable","reasonCode":"UNSUPPORTED_VERSION"}
+  },
+  "sensors": [],
+  "workout": {"present":null,"finished":null},
+  "activeRoute": null
+}

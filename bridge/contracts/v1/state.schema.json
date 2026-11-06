@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/state.schema.json",
+  "title": "GET /api/v1/state",
+  "description": "Normalized snapshot. Every key is required and nullable: absence is explicit, never an improvised optional field. Canonical units: m, m/s, ms, W, rpm, bpm, slope fraction, radians.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adapterInstanceId", "sequence", "stateRevision", "capturedAtUtc", "snapshotAgeMs", "sessionGeneration",
+    "modVersion", "bindingProfile", "layers", "sport", "metrics", "sensors", "workout", "activeRoute"
+  ],
+  "properties": {
+    "adapterInstanceId": { "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
+    "sequence": { "description": "Monotonic within one adapterInstanceId only.", "type": ["integer", "null"], "minimum": 0 },
+    "stateRevision": { "description": "Changes on semantic changes, not on every power sample.", "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
+    "capturedAtUtc": { "anyOf": [{ "$ref": "common.schema.json#/$defs/utcTimestamp" }, { "type": "null" }] },
+    "snapshotAgeMs": { "description": "Computed by the PC bridge with its monotonic clock.", "type": ["integer", "null"], "minimum": 0 },
+    "sessionGeneration": { "description": "Changes when totals/activity reset (save, route load, re-activation).", "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
+    "modVersion": { "type": ["string", "null"], "maxLength": 32 },
+    "bindingProfile": { "anyOf": [{ "enum": ["gtbikev-0804"] }, { "type": "null" }] },
+    "layers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "binding", "mod", "antReceiver", "bleReceiver", "gameControl"],
+      "properties": {
+        "adapter": { "enum": ["fresh", "stale", "absent"] },
+        "binding": { "enum": ["compatible", "limited", "incompatible", "unknown"] },
+        "mod": { "$ref": "common.schema.json#/$defs/modLayer" },
+        "antReceiver": { "$ref": "common.schema.json#/$defs/receiverState" },
+        "bleReceiver": { "$ref": "common.schema.json#/$defs/receiverState" },
+        "gameControl": { "enum": ["inControl", "paused", "loading", "notInControl", "unknown"] }
+      }
+    },
+    "sport": { "enum": ["cycling", "running", "rowing", "unknown"] },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "powerW", "speedMps", "cadenceRpm", "heartRateBpm", "distanceM", "ridingTimeMs",
+        "movingTimeMs", "elevationGainM", "elevationLossM", "slopeFraction", "windSpeedMps", "windDirRad"
+      ],
+      "properties": {
+        "powerW": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0, "maximum": 5000 } } },
+        "speedMps": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0, "maximum": 40 } } },
+        "cadenceRpm": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0, "maximum": 254 } } },
+        "heartRateBpm": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 1, "maximum": 254 } } },
+        "distanceM": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0 } } },
+        "ridingTimeMs": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0 } } },
+        "movingTimeMs": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0 } } },
+        "elevationGainM": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0 } } },
+        "elevationLossM": { "description": "Magnitude. Activity accumulates it with negative sign; the adapter normalizes.", "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0 } } },
+        "slopeFraction": { "description": "Fraction, not percent.", "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": -1, "maximum": 1 } } },
+        "windSpeedMps": { "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": 0, "maximum": 100 } } },
+        "windDirRad": { "description": "Relative game direction, not a compass bearing.", "$ref": "#/$defs/boundedMetric", "properties": { "value": { "minimum": -7, "maximum": 7 } } }
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "maxItems": 7,
+      "items": { "$ref": "#/$defs/sensorRole" }
+    },
+    "workout": {
+      "description": "Minimal guard data for v1.0. Full observation arrives with P6 as an additive minor version.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "finished"],
+      "properties": {
+        "present": { "type": ["boolean", "null"] },
+        "finished": { "type": ["boolean", "null"] }
+      }
+    },
+    "activeRoute": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "loop", "reverse"],
+          "properties": {
+            "id": { "$ref": "common.schema.json#/$defs/opaqueId" },
+            "loop": { "type": "boolean" },
+            "reverse": { "type": "boolean" }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "description": "Stale or absent adapter never publishes live values.",
+      "if": { "required": ["layers"], "properties": { "layers": { "required": ["adapter"], "properties": { "adapter": { "enum": ["stale", "absent"] } } } } },
+      "then": { "properties": { "metrics": { "patternProperties": { "^": { "properties": { "quality": { "enum": ["stale", "unavailable"] } } } } } } }
+    },
+    {
+      "description": "Absent adapter has no instance-scoped data.",
+      "if": { "required": ["layers"], "properties": { "layers": { "required": ["adapter"], "properties": { "adapter": { "const": "absent" } } } } },
+      "then": { "properties": { "adapterInstanceId": { "type": "null" }, "sequence": { "type": "null" }, "metrics": { "patternProperties": { "^": { "properties": { "quality": { "const": "unavailable" } } } } } } }
+    }
+  ],
+  "$defs": {
+    "boundedMetric": { "$ref": "common.schema.json#/$defs/metric" },
+    "sensorRole": {
+      "description": "One entry per DeviceFunctionType (Devices/DeviceFunctionType.cs:6). present comes from IDeviceInfo.Present, never from IsDTOK.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "present", "source", "deviceId", "sensorType"],
+      "properties": {
+        "role": { "enum": ["power", "resistance", "cadence", "heartRate", "steering", "controls", "runningSpeed"] },
+        "present": { "type": ["boolean", "null"] },
+        "source": { "enum": ["ANT", "BLE", "unknown"] },
+        "deviceId": { "anyOf": [{ "$ref": "common.schema.json#/$defs/deviceId" }, { "type": "null" }] },
+        "sensorType": { "enum": ["FEC", "CTRLS", "CPS", "HR", "CAD", "SPD", "FPOD", "BTS", "STZ", "KICKR", "unknown"] },
+        "name": { "description": "P12. Name a present BLE sensor advertises; null otherwise. Optional for older bridges.", "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 64 }, { "type": "null" }] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "present": { "const": true } } },
+          "then": { "properties": { "deviceId": { "$ref": "common.schema.json#/$defs/deviceId" }, "source": { "enum": ["ANT", "BLE"] } } }
+        }
+      ]
+    }
+  }
+}

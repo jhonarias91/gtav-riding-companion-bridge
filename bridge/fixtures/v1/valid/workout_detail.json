@@ -1,0 +1,43 @@
+{
+  "catalogRevision": "workouts-9f8e",
+  "ftpReferenceW": 230,
+  "workout": {
+    "id": "w-0123456789abcdef",
+    "planId": "p-0123456789abcdef",
+    "name": "Example Sweet Spot",
+    "author": "Example Coach",
+    "durationType": "time",
+    "total": 2700,
+    "segmentCount": 3,
+    "description": "Synthetic workout.",
+    "segments": [
+      {
+        "index": 0,
+        "type": "warmup",
+        "start": 0,
+        "end": 600,
+        "startPowerW": 115,
+        "endPowerW": 172,
+        "cadenceRpm": null
+      },
+      {
+        "index": 1,
+        "type": "steady",
+        "start": 600,
+        "end": 2400,
+        "startPowerW": 207,
+        "endPowerW": 207,
+        "cadenceRpm": 90
+      },
+      {
+        "index": 2,
+        "type": "cooldown",
+        "start": 2400,
+        "end": 2700,
+        "startPowerW": 150,
+        "endPowerW": 100,
+        "cadenceRpm": null
+      }
+    ]
+  }
+}

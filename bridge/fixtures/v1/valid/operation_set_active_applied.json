@@ -1,0 +1,1 @@
+{"operationId":"op-0007","requestId":"3f0b8a52-6c1e-4d2b-9a77-0c5e2f1d8b40","type":"mod.setActive","status":"applied","createdAtUtc":"2026-11-04T15:00:01Z","updatedAtUtc":"2026-11-04T15:00:03.750Z","error":null,"observed":{"mod":"inactive","antReceiver":"stopped","bleReceiver":"stopped","sequence":4229}}

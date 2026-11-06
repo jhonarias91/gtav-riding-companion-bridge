@@ -1,0 +1,31 @@
+{
+  "connected": true,
+  "course": {
+    "id": "35",
+    "reverse": false
+  },
+  "busiestRoute": null,
+  "riders": [
+    {
+      "rank": 1,
+      "kind": "human",
+      "name": "Example Rider",
+      "wattsPerKg": 3.6,
+      "speedMps": 9.4
+    },
+    {
+      "rank": 2,
+      "kind": "local",
+      "name": "You",
+      "wattsPerKg": 3.1,
+      "speedMps": 9.1
+    },
+    {
+      "rank": 3,
+      "kind": "bot",
+      "name": null,
+      "wattsPerKg": 2.8,
+      "speedMps": 8.7
+    }
+  ]
+}

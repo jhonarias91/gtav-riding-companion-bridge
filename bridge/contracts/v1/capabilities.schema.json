@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/capabilities.schema.json",
+  "title": "GET /api/v1/capabilities",
+  "description": "Computed from binding signatures and current context. The id enum is the v1 allowlist (see policy.json); ERG/target/workout control ids cannot be expressed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["modVersion", "bindingProfile", "adapterInstanceId", "capabilities"],
+  "properties": {
+    "modVersion": { "type": ["string", "null"], "maxLength": 32 },
+    "bindingProfile": {
+      "description": "null when no profile matched; writes are then all unavailable.",
+      "anyOf": [{ "enum": ["gtbikev-0804"] }, { "type": "null" }]
+    },
+    "adapterInstanceId": { "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
+    "capabilities": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/capability" }
+    }
+  },
+  "$defs": {
+    "capabilityId": {
+      "enum": [
+        "metrics.read",
+        "sensors.read",
+        "activity.read",
+        "mod.setActive",
+        "routes.read",
+        "routes.preview",
+        "routes.apply",
+        "ui.openPanel",
+        "ui.closePanel",
+        "profile.read",
+        "profile.update",
+        "rideSettings.update",
+        "appearance.select",
+        "devices.configure",
+        "devices.assign",
+        "devices.disconnect",
+        "workouts.read",
+        "workouts.observe",
+        "workouts.select",
+        "activities.list",
+        "activities.download",
+        "activities.finish",
+        "riders.read",
+        "multiplayer.joinBusiestRoute",
+        "map.position",
+        "advancedSettings.update"
+      ]
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "available", "reasonCode", "helpId", "applyMode"],
+      "properties": {
+        "id": { "$ref": "#/$defs/capabilityId" },
+        "available": { "type": "boolean" },
+        "reasonCode": { "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }] },
+        "helpId": { "$ref": "common.schema.json#/$defs/helpId" },
+        "applyMode": {
+          "description": "null for read capabilities.",
+          "enum": ["immediate", "async", "nextActivity", "scriptReload", null]
+        },
+        "requirements": {
+          "type": "array",
+          "maxItems": 8,
+          "items": { "$ref": "common.schema.json#/$defs/reasonCode" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "available": { "const": false } } },
+          "then": { "properties": { "reasonCode": { "$ref": "common.schema.json#/$defs/reasonCode" } } }
+        },
+        {
+          "if": { "properties": { "available": { "const": true } } },
+          "then": { "properties": { "reasonCode": { "type": "null" } } }
+        }
+      ]
+    }
+  }
+}

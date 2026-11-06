@@ -1,0 +1,597 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/command.schema.json",
+  "title": "POST /api/v1/commands",
+  "description": "Typed allowlist. v1.0: mod.setActive (P2). v1.1: routes and UI panel (P3). v1.2: profile, ride settings and appearance (P4). v1.3: devices.configure (P5). v1.5: activities.finish (P7). v1.7: devices.assign (P11). v1.9: devices.disconnect (P12). v1.10: workouts.select (P13, the native Select path only; pause, skip, end, ERG, target and bias stay forbidden). P6 adds reads only. The forbidden list in policy.json can never be added. Max body 64 KiB. The server assigns timestamps and TTL; client time is ignored.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "requestId",
+    "adapterInstanceId",
+    "type",
+    "expectedRevision",
+    "args"
+  ],
+  "properties": {
+    "requestId": {
+      "$ref": "common.schema.json#/$defs/requestId"
+    },
+    "adapterInstanceId": {
+      "$ref": "common.schema.json#/$defs/opaqueId"
+    },
+    "type": {
+      "$ref": "#/$defs/commandType"
+    },
+    "expectedRevision": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/opaqueId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "args": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "mod.setActive"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "args": {
+            "description": "Semantic target state, never a blind toggle. The adapter invokes the native toggle only when the observed state differs and no receiver is transitioning.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "routes.apply"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "catalogRevision the phone browsed.",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "routeId null = free ride (clears the course). loop/reverse only for routes whose catalog entry allows them; reverse requires a loop-capable route (CourseSelectionView.cs _liw_OnListChanged).",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "routeId",
+              "loop",
+              "reverse"
+            ],
+            "properties": {
+              "routeId": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/routeId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "loop": {
+                "type": "boolean"
+              },
+              "reverse": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "routes.preview"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "catalogRevision.",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "Moves the open PC route selector to this route. Never applies it.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "routeId"
+            ],
+            "properties": {
+              "routeId": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/routeId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ui.openPanel"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "args": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "panel"
+            ],
+            "properties": {
+              "panel": {
+                "$ref": "#/$defs/panel"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ui.closePanel"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "args": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "panel"
+            ],
+            "properties": {
+              "panel": {
+                "$ref": "#/$defs/panel"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "profile.update"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "settingsRevision.",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "Only the fields to change; at least one. Ranges mirror the native setters, which silently replace out-of-range values with defaults (Config.cs:90-140), so they are rejected here instead.",
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "weightKg": {
+                "type": "integer",
+                "minimum": 40,
+                "maximum": 150
+              },
+              "ftpW": {
+                "type": "integer",
+                "minimum": 50,
+                "maximum": 500
+              },
+              "hrMaxBpm": {
+                "type": "integer",
+                "minimum": 50,
+                "maximum": 220
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "rideSettings.update"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "settingsRevision.",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "Only the fields to change; at least one. difficulty is the native DifficultyLevel list (Menus.cs:283): 255 = disabled. No power target, gear or bias.",
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "autopilot": {
+                "type": "boolean"
+              },
+              "avoidObstacles": {
+                "type": "boolean"
+              },
+              "difficulty": {
+                "enum": [
+                  0,
+                  25,
+                  50,
+                  75,
+                  100,
+                  255
+                ]
+              },
+              "roadFeel": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "appearance.select"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "settingsRevision (catalog of bikes and characters).",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "Exactly one of bikeId / characterId, taken from GET /api/v1/settings.",
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "maxProperties": 1,
+            "properties": {
+              "bikeId": {
+                "$ref": "#/$defs/catalogKey"
+              },
+              "characterId": {
+                "$ref": "#/$defs/catalogKey"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "devices.configure"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "devicesRevision the phone saw.",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "Same three actions as the native Device Selection view (DeviceSelectionAction: Skip, Lock, Auto). Lock and Skip name the device the user saw; if the PC now uses another one the bridge answers DEVICE_CHANGED.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "role",
+              "action",
+              "expectedDeviceId",
+              "expectedSource"
+            ],
+            "properties": {
+              "role": {
+                "$ref": "#/$defs/sensorRole"
+              },
+              "action": {
+                "enum": [
+                  "auto",
+                  "lock",
+                  "skip"
+                ]
+              },
+              "expectedDeviceId": {
+                "anyOf": [
+                  {
+                    "$ref": "common.schema.json#/$defs/deviceId"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "expectedSource": {
+                "enum": [
+                  "ANT",
+                  "BLE",
+                  null
+                ]
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "action": {
+                      "const": "auto"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "expectedDeviceId": {
+                      "type": "null"
+                    },
+                    "expectedSource": {
+                      "type": "null"
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "expectedDeviceId": {
+                      "$ref": "common.schema.json#/$defs/deviceId"
+                    },
+                    "expectedSource": {
+                      "enum": [
+                        "ANT",
+                        "BLE"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "devices.assign"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "devicesRevision the phone saw.",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "P11. Locks a BLE sensor the phone saw advertising for one role, through the mod's own DeviceInfo.ChangeDeviceConfig (the rule the native Lock button writes). The phone never connects to the sensor; the PC does. The bridge rejects sensor types that cannot serve the role (VALUE_NOT_ALLOWED).",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "role",
+              "sensorType",
+              "deviceId"
+            ],
+            "properties": {
+              "role": {
+                "$ref": "#/$defs/sensorRole"
+              },
+              "sensorType": {
+                "$ref": "#/$defs/assignSensorType"
+              },
+              "deviceId": {
+                "$ref": "#/$defs/bleAddress"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "devices.disconnect"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "devicesRevision the phone saw.",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "P12. The PC drops a BLE sensor it uses now: roles locked to that address go back to the mod's Auto and the receiver stops accepting that sensor type until the user connects one from the phone or the mod restarts. Only BLE; a sensor the PC is not using is rejected with DEVICE_CHANGED.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sensorType",
+              "deviceId"
+            ],
+            "properties": {
+              "sensorType": {
+                "$ref": "#/$defs/assignSensorType"
+              },
+              "deviceId": {
+                "$ref": "#/$defs/bleAddress"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "activities.finish"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "sessionGeneration of the activity the user wants to save.",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "Saves the current activity like the native Save menu item. No discard, upload or delete.",
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "workouts.select"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "description": "catalogRevision of the workout list the phone browsed (GET /api/v1/workout-plans).",
+            "$ref": "common.schema.json#/$defs/opaqueId"
+          },
+          "args": {
+            "description": "P13. Selects and starts a workout exactly like the Select button of the mod's workout selector: the mod sets it on the current activity, starts its countdown and engages ERG itself. A workout already running is replaced, as the mod menu does (not ended or saved; the activity goes on). There is no pause, skip, end, ERG, target or bias command.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "workoutId"
+            ],
+            "properties": {
+              "workoutId": {
+                "type": "string",
+                "pattern": "^w-[a-f0-9]{16}$"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "commandType": {
+      "enum": [
+        "mod.setActive",
+        "routes.apply",
+        "routes.preview",
+        "ui.openPanel",
+        "ui.closePanel",
+        "profile.update",
+        "rideSettings.update",
+        "appearance.select",
+        "devices.configure",
+        "devices.assign",
+        "devices.disconnect",
+        "activities.finish",
+        "workouts.select"
+      ]
+    },
+    "routeId": {
+      "description": "Base catalog course id (CourseInfo.Id, ushort without the reverse bit 0x8000) as decimal string.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,4})$"
+    },
+    "panel": {
+      "description": "Allowlisted PC panels only. No workout selector, no confirmation dialogs.",
+      "enum": [
+        "routes"
+      ]
+    },
+    "catalogKey": {
+      "description": "Opaque key of a mod-provided list entry (bike/character name as listed by the mod).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "sensorRole": {
+      "enum": [
+        "power",
+        "resistance",
+        "cadence",
+        "heartRate",
+        "steering",
+        "controls",
+        "runningSpeed"
+      ]
+    },
+    "assignSensorType": {
+      "description": "BLE sensor types the mod derives from an advertisement (BLE_Receiver DeviceFactory), as GTBikeV.Devices.SensorDeviceType names them. ANT-only types (STZ) and SPD are not assignable.",
+      "enum": [
+        "FEC",
+        "CPS",
+        "HR",
+        "CAD",
+        "BTS",
+        "KICKR",
+        "CTRLS",
+        "FPOD"
+      ]
+    },
+    "bleAddress": {
+      "description": "48-bit BLE address as decimal string (Windows BluetoothAddress = the phone's MAC read as one hex number). 0 is the receiver wildcard and is not allowed; the bridge also rejects values above 2^48-1.",
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,14}$"
+    }
+  }
+}

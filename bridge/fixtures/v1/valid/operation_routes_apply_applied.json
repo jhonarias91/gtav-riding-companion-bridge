@@ -1,0 +1,18 @@
+{
+  "operationId": "op-routes-1",
+  "requestId": "6f1c2b9e-3d4a-4f5b-8c7d-1e2f3a4b5c6d",
+  "type": "routes.apply",
+  "status": "applied",
+  "createdAtUtc": "2026-11-04T15:00:00.000Z",
+  "updatedAtUtc": "2026-11-04T15:00:06.500Z",
+  "error": null,
+  "observed": {
+    "activeRoute": {
+      "id": "35",
+      "loop": true,
+      "reverse": false
+    },
+    "sessionGeneration": "session-4",
+    "sequence": 4300
+  }
+}

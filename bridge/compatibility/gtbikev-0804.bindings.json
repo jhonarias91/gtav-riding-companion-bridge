@@ -1,0 +1,407 @@
+{
+  "profile": "gtbikev-0804",
+  "status": "P2-P8 statically identified and resolved against GTBikeV.dll 0.8.0.4 by reflection (Test-BindingResolve.ps1, Test-WorldBindings.ps1). P2 validated in GTA V (R1-R5, 2026-11-05); P3-P8 pending in game.",
+  "source": "G:/develop2/games/GTBikeV/reference/GTBikeV-0.8.0.4-decompiled/GTBikeV (file:line refer to this export)",
+  "match": {
+    "assemblySimpleName": "GTBikeV",
+    "assemblyVersion": "0.8.0.4",
+    "evidence": "Properties/AssemblyInfo.cs: AssemblyVersion/AssemblyFileVersion 0.8.0.4; GTBikeV.csproj TargetFrameworkVersion v4.8",
+    "rule": "Profile is selected only when the version matches AND every 'required' binding below resolves with the exact CLR type. Any other version: reads only if they pass the same checks; all writes blocked."
+  },
+  "threading": "All reads and invocations run on the adapter's SHVDN Tick. HTTP, FIT parsing and disk I/O never touch these members.",
+  "bindings": [
+    {
+      "id": "dt.power",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.Power_w",
+      "kind": "static property",
+      "clrType": "System.Int32",
+      "evidence": "DataTransceiver.cs:72",
+      "mapping": "powerW; -1 or !IsDTOK -> null/unavailable; 0 is valid"
+    },
+    {
+      "id": "dt.speed",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.Speed_ms",
+      "kind": "static property",
+      "clrType": "System.Single",
+      "evidence": "DataTransceiver.cs:22",
+      "mapping": "speedMps; returns -1 when !IsDTOK -> null/unavailable"
+    },
+    {
+      "id": "dt.speedVirtual",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.IsSpeedVirtual",
+      "kind": "static auto-property",
+      "clrType": "System.Boolean",
+      "evidence": "DataTransceiver.cs:179",
+      "mapping": "speedMps.source = virtual when true"
+    },
+    {
+      "id": "dt.cadence",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.Cadence_rpm",
+      "kind": "static property",
+      "clrType": "System.Byte",
+      "evidence": "DataTransceiver.cs:90",
+      "mapping": "cadenceRpm; 255 -> null/unavailable"
+    },
+    {
+      "id": "dt.heartRate",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.HeartRate",
+      "kind": "static property",
+      "clrType": "System.Byte",
+      "evidence": "DataTransceiver.cs:108",
+      "mapping": "heartRateBpm; 255, 0 or no present heartRate sensor -> null/unavailable"
+    },
+    {
+      "id": "dt.distance",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.TotalDistance_m",
+      "kind": "static auto-property",
+      "clrType": "System.Single",
+      "evidence": "DataTransceiver.cs:184",
+      "mapping": "distanceM; resets with session"
+    },
+    {
+      "id": "dt.ridingTime",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.RidingTime_ms",
+      "kind": "static auto-property",
+      "clrType": "System.Int64",
+      "evidence": "DataTransceiver.cs:189",
+      "mapping": "ridingTimeMs (not moving time)"
+    },
+    {
+      "id": "dt.slope",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.Slope",
+      "kind": "static property (get only used)",
+      "clrType": "System.Single",
+      "evidence": "DataTransceiver.cs:239",
+      "mapping": "slopeFraction; getter already maps -9999.9 sentinel to 0, so 0 is ambiguous: quality valid only when IsDTOK"
+    },
+    {
+      "id": "dt.windSpeed",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.WindSpeed_kmh",
+      "kind": "static auto-property",
+      "clrType": "System.Single",
+      "evidence": "DataTransceiver.cs:229",
+      "mapping": "windSpeedMps = kmh / 3.6"
+    },
+    {
+      "id": "dt.windDir",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.WindDir_rad",
+      "kind": "static auto-property",
+      "clrType": "System.Single",
+      "evidence": "DataTransceiver.cs:234",
+      "mapping": "windDirRad (relative)"
+    },
+    {
+      "id": "dt.sport",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.Sport",
+      "kind": "static property",
+      "clrType": "GTBikeV.DataTransceiver+SportType",
+      "evidence": "DataTransceiver.cs:164, enum 1649 (UNKNOWN=0, RUNNING=19, ROWING=22, CYCLING=25)",
+      "mapping": "sport by enum NAME, never by integer"
+    },
+    {
+      "id": "dt.isDtOk",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.IsDTOK",
+      "kind": "static property",
+      "clrType": "System.Boolean",
+      "evidence": "DataTransceiver.cs:193 = IsANTOK || IsBLEOK; each includes STOPPING (203/213)",
+      "mapping": "Never exposed alone; used for toggle guard. Does NOT prove a sensor is present."
+    },
+    {
+      "id": "dt.antStatus",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.ANTStatus",
+      "kind": "private static field",
+      "clrType": "GTBikeV.DataTransceiver+ReceiverState (private enum)",
+      "evidence": "DataTransceiver.cs:1445; enum 1662; transitions 431-604",
+      "mapping": "layers.antReceiver by enum NAME lowercased; unknown name -> unknown + binding limited"
+    },
+    {
+      "id": "dt.bleStatus",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.BLEStatus",
+      "kind": "private static field",
+      "clrType": "GTBikeV.DataTransceiver+ReceiverState (private enum)",
+      "evidence": "DataTransceiver.cs:1448",
+      "mapping": "layers.bleReceiver"
+    },
+    {
+      "id": "dt.antError",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.DataTransceiver.ANTReceiverError",
+      "kind": "static auto-property",
+      "clrType": "System.Boolean",
+      "evidence": "DataTransceiver.cs (after IsBLEOK)",
+      "mapping": "diagnostic only"
+    },
+    {
+      "id": "dev.current",
+      "phase": "P2",
+      "required": false,
+      "access": "invoke-read",
+      "member": "GTBikeV.Devices.DeviceInfo.GetCurrentDeviceFor(DeviceFunctionType)",
+      "kind": "internal static method",
+      "clrType": "GTBikeV.Devices.IDeviceInfo",
+      "evidence": "Devices/DeviceInfo.cs:43",
+      "mapping": "sensors[]: Present, DeviceId (ulong -> decimal string), DataSourceType (Devices/DataSource.cs), SensorType (Devices/SensorDeviceType.cs). Returns null when no device.",
+      "risk": "Calls native ANT_Receiver/BLE_Receiver.GetDeviceInfoByFunction on every call. Only call when the matching receiver is READY; throttle (proposal: 1 Hz, not every 250 ms Tick); catch per role so one failure disables only sensors.read."
+    },
+    {
+      "id": "act.current",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.Network.Multiplayer.CurrentActivity",
+      "kind": "internal static auto-property",
+      "clrType": "GTBikeV.Activity",
+      "evidence": "Network/Multiplayer.cs:34; mirrored by GTBikeVScript.currentActivity setter (GTBikeVScript.cs:51)",
+      "mapping": "Read-only path to the live Activity without the private script instance. null after DeinitializeMod."
+    },
+    {
+      "id": "act.movingTime",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.Activity.TotalMovingTime",
+      "kind": "instance auto-property",
+      "clrType": "System.Int64",
+      "evidence": "Activity.cs:45",
+      "mapping": "movingTimeMs"
+    },
+    {
+      "id": "act.elevationGain",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.Activity.ElevationGain",
+      "kind": "instance auto-property",
+      "clrType": "System.Single",
+      "evidence": "Activity.cs:60",
+      "mapping": "elevationGainM"
+    },
+    {
+      "id": "act.elevationLoss",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.Activity.ElevationLoss",
+      "kind": "instance auto-property",
+      "clrType": "System.Single",
+      "evidence": "Activity.cs:65 (accumulated negative)",
+      "mapping": "elevationLossM = abs(value)"
+    },
+    {
+      "id": "act.workout",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.Activity.Workout",
+      "kind": "public instance field",
+      "clrType": "GTBikeV.Workouts.Workout",
+      "evidence": "Activity.cs:533",
+      "mapping": "workout.present; guard source for WORKOUT_PC_CONTROL_REQUIRED"
+    },
+    {
+      "id": "wk.finished",
+      "phase": "P2",
+      "required": true,
+      "access": "read",
+      "member": "GTBikeV.Workouts.Workout.Finished",
+      "kind": "instance auto-property",
+      "clrType": "System.Boolean",
+      "evidence": "Workouts/Workout.cs:109",
+      "mapping": "workout.finished"
+    },
+    {
+      "id": "menu.activate",
+      "phase": "P2",
+      "required": true,
+      "access": "invoke",
+      "member": "GTBikeV.UI.Menus.activateModMenuItem -> LemonUI NativeItem.OnActivated(object)",
+      "kind": "private static field + instance method",
+      "clrType": "LemonUI NativeItem",
+      "evidence": "UI/Menus.cs:748; handler GTBikeVScript.ActivateModHandler:1425 (toggle on IsDTOK)",
+      "mapping": "mod.setActive. Existing prototype checks >=2 Activated subscribers and Enabled before invoking.",
+      "guard": "policy.json modSetActiveGuard",
+      "risk": "DeinitializeMod (1128) encodes the activity, and may Script.Yield until the player is on foot: the adapter Tick can block several frames; snapshots must go stale rather than freeze silently."
+    },
+    {
+      "id": "game.inControl",
+      "phase": "P2",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.GTBikeVScript.IsPlayerInControl",
+      "kind": "private instance property",
+      "clrType": "System.Boolean",
+      "evidence": "GTBikeVScript.cs:842",
+      "mapping": "Needs the script instance (not reachable statically). Proposal: compute layers.gameControl from SHVDN Game.IsPaused / Game.IsLoading / Game.IsCutsceneActive / Player.CanControlCharacter in the adapter itself, mirroring 842 without the private native call."
+    },
+    {
+      "id": "forbidden.erg",
+      "phase": "never",
+      "required": false,
+      "access": "none",
+      "member": "GTBikeV.DataTransceiver.ERGMode (set), SetTargetPower(short), _ERGtargetPower",
+      "evidence": "DataTransceiver.cs:258, 968",
+      "mapping": "Not bound. The v1 adapter must not resolve these members at all (the legacy GTBikeApi.ErgAvailable path stays legacy-only)."
+    },
+    {
+      "id": "forbidden.workoutSelect",
+      "phase": "never",
+      "required": false,
+      "access": "none",
+      "member": "GTBikeV.GTBikeVScript.OnWorkoutSelected / WorkoutSelectedHandler / CreateNewActivity",
+      "evidence": "GTBikeVScript.cs:1742, 1551, 1250",
+      "mapping": "Not bound."
+    },
+    {
+      "id": "activities.save",
+      "phase": "P7",
+      "required": false,
+      "access": "invoke",
+      "member": "GTBikeV.UI.Menus.saveActivityMenuItem (OnActivated) + Activity.TotalDistance / ActivityFileName + Config.UserActivitiesPath",
+      "evidence": "UI/Menus.cs:781; GTBikeVScript.cs:1558/1564; Activity.Encode:326 (>100 m)",
+      "mapping": "P7 implemented in game-adapter-v1/GtbikeV1More.cs. Guards: >100 m, stopped, no unfinished workout, quoted sessionGeneration. The PC summary it opens (discard deletes the file) is never touched."
+    },
+    {
+      "id": "routes.view",
+      "phase": "P3",
+      "required": false,
+      "access": "invoke",
+      "member": "GTBikeV.UI.Menus.courseSelectionView (ItemList, Index, Visible, OnCourseSelected, _loopCourse/_reverseCourse) + courseSelectionMenuItem + Network.Multiplayer.CurrentCourse (Id, Loop, Reverse)",
+      "evidence": "UI/Menus.cs:187/477; UI/CourseSelectionView.cs SelectCourseButton_OnRelease/_liw_OnListChanged; GTBikeVScript.cs:1520/1169; Courses/Course.cs:467",
+      "mapping": "P3 implemented in game-adapter-v1/GtbikeV1Extensions.cs. Resolved against the real DLL by Test-BindingResolve.ps1; runtime pending (P3_RECORRIDOS.md R1-R10)."
+    },
+    {
+      "id": "devices.configure",
+      "phase": "P5",
+      "required": false,
+      "access": "invoke",
+      "member": "GTBikeV.UI.Menus.deviceSelectionView.OnDeviceConfigured(DeviceSelectionConfig) + DeviceInfo.IsDeviceFunctionAuto/Locked/Skippable + DeviceInfo._deviceInfoConfig",
+      "evidence": "UI/Menus.cs:799; GTBikeVScript.cs:1610; Devices/DeviceSelectionAction.cs (Skip=0, Lock=1, Auto=2)",
+      "mapping": "P5 implemented (GtbikeV1More.cs); native button enablement replicated; DEVICE_CHANGED when the current device differs."
+    },
+    {
+      "id": "devices.assign",
+      "phase": "P11",
+      "required": false,
+      "access": "invoke",
+      "member": "GTBikeV.Devices.DeviceInfo.ChangeDeviceConfig(DeviceFunctionType, IDeviceInfo, bool) with new BLEDeviceInfo(BLE_Receiver.BLEReceiverDeviceInfo {DeviceAddress, DeviceType}) + BLE_Receiver.AddDevice(byte, ulong)",
+      "evidence": "Devices/DeviceInfo.cs ChangeDeviceConfig / InitializeReceiverDevices; Devices/BLEDeviceInfo.cs DeviceId; BLE_Receiver.dll BLE_Receiver.AddDevice and AdvertisingFound (expected address per sensor type, 0 = any); Ble/Win10/DeviceConnection.GapAddr = BitConverter.GetBytes(BluetoothAddress)",
+      "mapping": "P11 implemented (GtbikeV1More.AssignDevice): native Auto then native Lock with the phone-chosen address, then AddDevice for the live receiver. Test-BindingResolve.ps1 builds the mod's BLEDeviceInfo offline and checks the INI rule (BLE:FEC:C0FFEE000001). Runtime pending (P11 checklist)."
+    },
+    {
+      "id": "devices.disconnect",
+      "phase": "P12",
+      "required": false,
+      "access": "invoke",
+      "member": "BLE_Receiver.dll CurrentDevices.GetByAddress(ulong) (internal) + BLE_Receiver.DisconnectDevice(BLEBaseDevice, ulong) (private) + BLEBaseDevice.Disconnect(); GTBikeV.Devices.DeviceInfo.ChangeDeviceConfig(fn, null, true) for roles locked to that address; BLE_Receiver.AddDevice(type, 0xFFFFFFFFFFFF)",
+      "evidence": "BLE_Receiver.cs OnDisconnectedDevice -> DisconnectDevice (bookkeeping for a lost device, raises DeviceDisconnectedEvent shown by GTBikeVScript.OnDeviceDisconnected); AdvertisingFound connects a type only to its expected address; Devices/BLEDeviceInfo.cs Name",
+      "mapping": "P12 implemented (GtbikeV1More.DisconnectDevice): only a BLE sensor the PC uses now; locked roles back to native Auto; that sensor type is blocked until the user connects one from the phone or the mod restarts. current.name comes from BLEDeviceInfo.Name. Runtime pending (P12 checklist)."
+    },
+    {
+      "id": "settings.profile",
+      "phase": "P4",
+      "required": false,
+      "access": "read-write",
+      "member": "GTBikeV.Config.UserWeight / UserFTP / UserHRMax / TrainerDifficulty / ActivateRoadFeel",
+      "evidence": "Config.cs:90/110/130/331/150",
+      "mapping": "P4 implemented (GtbikeV1Extensions.cs). Native setters silently replace out-of-range values: bridge/adapter reject instead. Runtime pending (P4 S1-S10)."
+    },
+    {
+      "id": "settings.ride",
+      "phase": "P4",
+      "required": false,
+      "access": "read-write",
+      "member": "GTBikeV.UI.Menus.AutoPilot (property) / AvoidObstacles (static field) / trainerDiffMenuItem / trainerRoadFeelMenuItem; appearance via bikeListMenuItem / pedListMenuItem",
+      "evidence": "UI/Menus.cs:39 and AvoidObstacles",
+      "mapping": "P4 implemented. Open runtime question: LemonUI SelectedIndex/Checked setters raising ItemChanged/CheckboxChanged (P4 S6-S7)."
+    },
+    {
+      "id": "activities.path",
+      "phase": "P7",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.Config.UserActivitiesPath",
+      "evidence": "Config.cs:1073 (public static field)",
+      "mapping": "P7: written to v1/paths.json for the bridge only."
+    },
+    {
+      "id": "workouts.catalog",
+      "phase": "P6",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.Workouts.WorkoutRetriever.WorkoutLib + GetWorkouts(string) + Activity.Workout (Name, Started, InCountdown, Finished, ElapsedDuration, CurrentSegment)",
+      "evidence": "Workouts/WorkoutRetriever.cs:143, Workouts/Workout.cs",
+      "mapping": "P6 read only; catalog parsed on a worker thread once per library/FTP. No selection, ERG or PowerAdjust member is resolved."
+    },
+    {
+      "id": "world.map",
+      "phase": "P8a",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.Network.Multiplayer.CurrentCourse + Course.WaypointCount / GetWaypointAt(int); player position from SHVDN",
+      "evidence": "game-adapter-v1/GtbikeV1World.cs",
+      "mapping": "Optional; projected to the operator calibrated PNG by the bridge (world.mjs). Resolved by Test-WorldBindings.ps1."
+    },
+    {
+      "id": "world.riders",
+      "phase": "P8b",
+      "required": false,
+      "access": "read",
+      "member": "GTBikeV.Network.RemotePlayers.GetSortedRankingCyclistList / PlayerCount / CourseIdWithMostPlayers / AreRemoteUsersInCourses + Cyclist.Name/WattPerKg/Speed + RemoteCyclist.IsPlayer",
+      "evidence": "game-adapter-v1/GtbikeV1World.cs",
+      "mapping": "Read only; join busiest route stays disabled (JoinMultiplayerHandler defers course load)."
+    }
+  ],
+  "runtimeChecklist": [
+    "R1 Adapter resolves every required P2 binding with the exact CLR type on 0.8.0.4 and reports bindingProfile=gtbikev-0804.",
+    "R2 ANTStatus/BLEStatus names read by reflection match the 8 ReceiverState names through activate -> ready -> deactivate -> stopped.",
+    "R3 Multiplayer.CurrentActivity is non-null while riding after activation and null after deactivation.",
+    "R4 GetCurrentDeviceFor at 1 Hz on READY receivers does not drop frames or throw; heartRate absent -> present=false.",
+    "R5 Deactivation via menu item: measure how many Ticks the adapter is blocked (Script.Yield loop) and confirm the bridge marks the snapshot stale, not live.",
+    "R6 mod.setActive(true) while a receiver is 'started' is rejected with MOD_TRANSITION_IN_PROGRESS and does not call the handler.",
+    "R7 With a PC-started workout, Activity.Workout != null and Finished=false are observed (guard input for later phases)."
+  ]
+}

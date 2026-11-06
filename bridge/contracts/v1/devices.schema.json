@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/devices.schema.json",
+  "title": "GET /api/v1/device-roles",
+  "description": "P5. Per-function source chosen by the PC and the mod's selection policy (Devices/DeviceInfo.cs). The PC discovers and connects sensors; the phone never scans Bluetooth or ANT. actions mirror the native buttons: Auto enabled when a policy exists, Lock when not locked, Skip when a current device exists and the role is not locked (UI/DeviceTypeViewWidget.cs, DeviceInfo.IsDeviceFunction*).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "devicesRevision",
+    "reasonCode",
+    "roles"
+  ],
+  "properties": {
+    "devicesRevision": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/opaqueId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reasonCode": {
+      "description": "Why roles are not readable now (mod inactive, adapter stale...).",
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/reasonCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "roles": {
+      "type": "array",
+      "maxItems": 7,
+      "items": {
+        "$ref": "#/$defs/role"
+      }
+    }
+  },
+  "$defs": {
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deviceId",
+        "source",
+        "sensorType"
+      ],
+      "properties": {
+        "deviceId": {
+          "$ref": "common.schema.json#/$defs/deviceId"
+        },
+        "source": {
+          "enum": [
+            "ANT",
+            "BLE"
+          ]
+        },
+        "sensorType": {
+          "enum": [
+            "FEC",
+            "CTRLS",
+            "CPS",
+            "HR",
+            "CAD",
+            "SPD",
+            "FPOD",
+            "BTS",
+            "STZ",
+            "KICKR",
+            "unknown"
+          ]
+        },
+        "name": {
+          "description": "P12. Name the BLE sensor advertises (BLEDeviceInfo.Name, with the manufacturer when known); null or absent for ANT and unnamed sensors.",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "visible",
+        "current",
+        "policy",
+        "entries",
+        "actions"
+      ],
+      "properties": {
+        "role": {
+          "$ref": "command.schema.json#/$defs/sensorRole"
+        },
+        "visible": {
+          "description": "The native view hides roles that do not apply to the current sport.",
+          "type": "boolean"
+        },
+        "current": {
+          "description": "Device the PC uses now; null when none.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/device"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "policy": {
+          "description": "auto: no rule. locked: a device is pinned. filtered: only skipped devices are listed.",
+          "enum": [
+            "auto",
+            "locked",
+            "filtered"
+          ]
+        },
+        "entries": {
+          "description": "The saved rule for this role, as the mod stores it.",
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "deviceId",
+              "source",
+              "sensorType",
+              "excluded"
+            ],
+            "properties": {
+              "deviceId": {
+                "$ref": "common.schema.json#/$defs/deviceId"
+              },
+              "source": {
+                "enum": [
+                  "ANT",
+                  "BLE"
+                ]
+              },
+              "sensorType": {
+                "enum": [
+                  "FEC",
+                  "CTRLS",
+                  "CPS",
+                  "HR",
+                  "CAD",
+                  "SPD",
+                  "FPOD",
+                  "BTS",
+                  "STZ",
+                  "KICKR",
+                  "unknown"
+                ]
+              },
+              "excluded": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "actions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "auto",
+            "lock",
+            "skip"
+          ],
+          "properties": {
+            "auto": {
+              "type": "boolean"
+            },
+            "lock": {
+              "type": "boolean"
+            },
+            "skip": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "current": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "actions": {
+                "properties": {
+                  "skip": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

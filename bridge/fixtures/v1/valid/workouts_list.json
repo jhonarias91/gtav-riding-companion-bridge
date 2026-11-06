@@ -1,0 +1,15 @@
+{
+  "catalogRevision": "workouts-9f8e",
+  "planId": "p-0123456789abcdef",
+  "workouts": [
+    {
+      "id": "w-0123456789abcdef",
+      "planId": "p-0123456789abcdef",
+      "name": "Example Sweet Spot",
+      "author": "Example Coach",
+      "durationType": "time",
+      "total": 2700,
+      "segmentCount": 3
+    }
+  ]
+}

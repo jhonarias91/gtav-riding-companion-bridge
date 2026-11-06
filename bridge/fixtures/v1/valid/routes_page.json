@@ -1,0 +1,41 @@
+{
+  "catalogRevision": "catalog-3f2a",
+  "total": 2,
+  "offset": 0,
+  "items": [
+    {
+      "id": "35",
+      "name": "Example Coastal Loop",
+      "author": "Example Author",
+      "distanceM": 24300,
+      "elevationGainM": 310,
+      "elevationLossM": 310,
+      "maxElevationM": 120,
+      "categories": [
+        "Flat"
+      ],
+      "types": [
+        "Road"
+      ],
+      "loopAllowed": true,
+      "reverseAllowed": true,
+      "version": "1.0"
+    },
+    {
+      "id": "36",
+      "name": "Example Hill Climb",
+      "author": null,
+      "distanceM": 8100,
+      "elevationGainM": 640,
+      "elevationLossM": 12,
+      "maxElevationM": 690,
+      "categories": [
+        "Climb"
+      ],
+      "types": [],
+      "loopAllowed": false,
+      "reverseAllowed": false,
+      "version": null
+    }
+  ]
+}

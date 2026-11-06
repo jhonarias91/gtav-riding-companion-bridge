@@ -1,0 +1,703 @@
+{
+  "note": "Synthetic. 'file' cases load a fixture; 'derived' cases apply JSON-pointer set/remove to a valid base so negatives stay small and reviewable.",
+  "cases": [
+    {
+      "file": "valid/hello.json",
+      "schema": "hello",
+      "valid": true
+    },
+    {
+      "file": "valid/capabilities_ready.json",
+      "schema": "capabilities",
+      "valid": true
+    },
+    {
+      "file": "valid/capabilities_unsupported_mod.json",
+      "schema": "capabilities",
+      "valid": true
+    },
+    {
+      "file": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": true
+    },
+    {
+      "file": "valid/state_ready_no_sensors.json",
+      "schema": "state",
+      "valid": true
+    },
+    {
+      "file": "valid/state_stale_adapter.json",
+      "schema": "state",
+      "valid": true
+    },
+    {
+      "file": "valid/state_adapter_absent.json",
+      "schema": "state",
+      "valid": true
+    },
+    {
+      "file": "valid/state_unsupported_mod.json",
+      "schema": "state",
+      "valid": true
+    },
+    {
+      "file": "valid/command_mod_set_active.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/operation_set_active_pending.json",
+      "schema": "operation",
+      "valid": true
+    },
+    {
+      "file": "valid/operation_set_active_applied.json",
+      "schema": "operation",
+      "valid": true
+    },
+    {
+      "file": "valid/operation_set_active_rejected_transition.json",
+      "schema": "operation",
+      "valid": true
+    },
+    {
+      "file": "valid/error_auth_required.json",
+      "schema": "error",
+      "valid": true
+    },
+    {
+      "file": "valid/error_workout_pc_control.json",
+      "schema": "error",
+      "valid": true
+    },
+    {
+      "file": "invalid/command_erg.json",
+      "schema": "command",
+      "valid": false,
+      "why": "ERG is not an allowed command type"
+    },
+    {
+      "file": "invalid/command_workout_start.json",
+      "schema": "command",
+      "valid": false,
+      "why": "Remote workout start is excluded"
+    },
+    {
+      "file": "invalid/command_set_active_string_bool.json",
+      "schema": "command",
+      "valid": false,
+      "why": "No string-to-bool coercion"
+    },
+    {
+      "file": "invalid/command_set_active_extra_arg.json",
+      "schema": "command",
+      "valid": false,
+      "why": "Unknown command fields rejected (no smuggled target power)"
+    },
+    {
+      "file": "invalid/command_client_timestamp.json",
+      "schema": "command",
+      "valid": false,
+      "why": "Server assigns TTL; client time ignored"
+    },
+    {
+      "file": "invalid/capabilities_erg.json",
+      "schema": "capabilities",
+      "valid": false,
+      "why": "ERG capability cannot be expressed"
+    },
+    {
+      "file": "invalid/capabilities_unavailable_without_reason.json",
+      "schema": "capabilities",
+      "valid": false,
+      "why": "Unavailable capability must explain why"
+    },
+    {
+      "file": "invalid/hello_leaks_lan_addresses.json",
+      "schema": "hello",
+      "valid": false,
+      "why": "hello exposes minimal identity only"
+    },
+    {
+      "file": "invalid/hello_major_2.json",
+      "schema": "hello",
+      "valid": false,
+      "why": "Major version mismatch is rejected"
+    },
+    {
+      "file": "invalid/operation_applied_without_evidence.json",
+      "schema": "operation",
+      "valid": false,
+      "why": "applied requires observed evidence"
+    },
+    {
+      "file": "invalid/error_leaks_stack.json",
+      "schema": "error",
+      "valid": false,
+      "why": "Details are short, sanitized values"
+    },
+    {
+      "file": "valid/routes_page.json",
+      "schema": "routes",
+      "valid": true
+    },
+    {
+      "file": "valid/route_detail.json",
+      "schema": "routes",
+      "valid": true
+    },
+    {
+      "file": "valid/route_preview_open.json",
+      "schema": "route-preview",
+      "valid": true
+    },
+    {
+      "file": "valid/route_preview_closed.json",
+      "schema": "route-preview",
+      "valid": true
+    },
+    {
+      "file": "valid/settings_active_mod.json",
+      "schema": "settings",
+      "valid": true
+    },
+    {
+      "file": "valid/settings_inactive_mod.json",
+      "schema": "settings",
+      "valid": true
+    },
+    {
+      "file": "valid/command_routes_apply.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_routes_free_ride.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_profile_update.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_ride_settings.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_appearance_bike.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_open_routes_panel.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/operation_routes_apply_applied.json",
+      "schema": "operation",
+      "valid": true
+    },
+    {
+      "file": "invalid/command_routes_apply_index.json",
+      "schema": "command",
+      "valid": false,
+      "why": "Routes travel by stable id, never by list index"
+    },
+    {
+      "file": "invalid/command_routes_apply_no_catalog_revision.json",
+      "schema": "command",
+      "valid": false,
+      "why": "routes.apply quotes the catalog revision it browsed"
+    },
+    {
+      "file": "invalid/command_profile_weight_out_of_range.json",
+      "schema": "command",
+      "valid": false,
+      "why": "The native setter would silently store 75 kg; rejected instead"
+    },
+    {
+      "file": "invalid/command_profile_empty.json",
+      "schema": "command",
+      "valid": false,
+      "why": "An empty profile update is not a command"
+    },
+    {
+      "file": "invalid/command_ride_difficulty_37.json",
+      "schema": "command",
+      "valid": false,
+      "why": "Difficulty is the native level list only"
+    },
+    {
+      "file": "invalid/command_ride_target_power.json",
+      "schema": "command",
+      "valid": false,
+      "why": "No power target can be smuggled into ride settings"
+    },
+    {
+      "file": "invalid/command_appearance_both.json",
+      "schema": "command",
+      "valid": false,
+      "why": "One appearance change per command"
+    },
+    {
+      "file": "invalid/command_open_workout_panel.json",
+      "schema": "command",
+      "valid": false,
+      "why": "The workout selector panel is not allowlisted"
+    },
+    {
+      "file": "invalid/settings_power_target.json",
+      "schema": "settings",
+      "valid": false,
+      "why": "Settings cannot express a power target"
+    },
+    {
+      "file": "invalid/route_preview_closed_with_route.json",
+      "schema": "route-preview",
+      "valid": false,
+      "why": "A closed selector has no previewed route"
+    },
+    {
+      "file": "valid/device_roles.json",
+      "schema": "devices",
+      "valid": true
+    },
+    {
+      "file": "valid/device_roles_inactive.json",
+      "schema": "devices",
+      "valid": true
+    },
+    {
+      "file": "valid/workout_plans.json",
+      "schema": "workouts",
+      "valid": true
+    },
+    {
+      "file": "valid/workouts_list.json",
+      "schema": "workouts",
+      "valid": true
+    },
+    {
+      "file": "valid/workout_detail.json",
+      "schema": "workouts",
+      "valid": true
+    },
+    {
+      "file": "valid/workout_progress_active.json",
+      "schema": "workouts",
+      "valid": true
+    },
+    {
+      "file": "valid/workout_progress_none.json",
+      "schema": "workouts",
+      "valid": true
+    },
+    {
+      "file": "valid/activities_page.json",
+      "schema": "activities",
+      "valid": true
+    },
+    {
+      "file": "valid/activity_detail.json",
+      "schema": "activities",
+      "valid": true
+    },
+    {
+      "file": "valid/command_devices_lock.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_devices_auto.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_activities_finish.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "invalid/command_devices_lock_without_device.json",
+      "schema": "command",
+      "valid": false,
+      "why": "Lock names the device the user saw"
+    },
+    {
+      "file": "invalid/command_devices_auto_with_device.json",
+      "schema": "command",
+      "valid": false,
+      "why": "Auto clears the rule; it names no device"
+    },
+    {
+      "file": "invalid/command_devices_numeric_id.json",
+      "schema": "command",
+      "valid": false,
+      "why": "ulong device ids travel as strings"
+    },
+    {
+      "file": "invalid/command_devices_assign_source.json",
+      "schema": "command",
+      "valid": false
+    },
+    {
+      "file": "invalid/command_devices_assign_ant_type.json",
+      "schema": "command",
+      "valid": false
+    },
+    {
+      "file": "invalid/command_devices_assign_wildcard.json",
+      "schema": "command",
+      "valid": false
+    },
+    {
+      "file": "valid/command_devices_assign.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_devices_disconnect.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "invalid/command_devices_disconnect_role.json",
+      "schema": "command",
+      "valid": false,
+      "why": "disconnect names the sensor, not a role"
+    },
+    {
+      "file": "invalid/command_devices_disconnect_ant.json",
+      "schema": "command",
+      "valid": false,
+      "why": "only BLE sensors can be disconnected from the phone"
+    },
+    {
+      "file": "invalid/command_activities_discard.json",
+      "schema": "command",
+      "valid": false,
+      "why": "No discard or delete through finish"
+    },
+    {
+      "file": "invalid/command_activities_finish_no_session.json",
+      "schema": "command",
+      "valid": false,
+      "why": "Save quotes the session it saves"
+    },
+    {
+      "file": "invalid/command_workout_select.json",
+      "schema": "command",
+      "valid": false,
+      "why": "workouts.select must quote the workout catalog revision the phone browsed"
+    },
+    {
+      "file": "valid/command_workouts_select.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "invalid/device_roles_skip_without_current.json",
+      "schema": "devices",
+      "valid": false,
+      "why": "Skip needs a current device"
+    },
+    {
+      "file": "invalid/workout_progress_power_adjust.json",
+      "schema": "workouts",
+      "valid": false,
+      "why": "Progress cannot carry bias/power adjust"
+    },
+    {
+      "file": "invalid/activity_item_path.json",
+      "schema": "activities",
+      "valid": false,
+      "why": "Names only, never paths"
+    },
+    {
+      "file": "valid/map_with_route.json",
+      "schema": "map",
+      "valid": true
+    },
+    {
+      "file": "valid/map_outside_coverage.json",
+      "schema": "map",
+      "valid": true
+    },
+    {
+      "file": "valid/riders_online.json",
+      "schema": "riders",
+      "valid": true
+    },
+    {
+      "file": "valid/riders_free_ride_suggestion.json",
+      "schema": "riders",
+      "valid": true
+    },
+    {
+      "file": "invalid/riders_offline_with_busiest.json",
+      "schema": "riders",
+      "valid": false,
+      "why": "No suggestion without the PC multiplayer connection"
+    },
+    {
+      "file": "invalid/map_point_outside_image.json",
+      "schema": "map",
+      "valid": false,
+      "why": "Points outside the image are null, never clamped"
+    },
+    {
+      "file": "invalid/map_world_coordinates.json",
+      "schema": "map",
+      "valid": false,
+      "why": "GTA world coordinates never reach the phone"
+    },
+    {
+      "derived": "state_stale_with_valid_metric",
+      "base": "valid/state_stale_adapter.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/powerW/quality": "valid"
+      },
+      "why": "Stale adapter never shows live values"
+    },
+    {
+      "derived": "state_absent_with_instance",
+      "base": "valid/state_adapter_absent.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/adapterInstanceId": "adapter-1"
+      },
+      "why": "Absent adapter has no instance"
+    },
+    {
+      "derived": "state_device_id_number",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/sensors/3/deviceId": 12345
+      },
+      "why": "ulong device IDs travel as strings"
+    },
+    {
+      "derived": "state_hr_zero_valid",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/heartRateBpm/value": 0
+      },
+      "why": "Missing HR is null/unavailable, not an inferred zero"
+    },
+    {
+      "derived": "state_hr_sentinel_255",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/heartRateBpm/value": 255
+      },
+      "why": "255 is the invalid sentinel"
+    },
+    {
+      "derived": "state_cadence_sentinel_255",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/cadenceRpm/value": 255
+      },
+      "why": "255 is the invalid sentinel"
+    },
+    {
+      "derived": "state_power_sentinel_minus1",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/powerW/value": -1
+      },
+      "why": "-1 means unknown; map to null/unavailable"
+    },
+    {
+      "derived": "state_speed_sentinel_minus1",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/speedMps/value": -1
+      },
+      "why": "Speed_ms returns -1 when !IsDTOK"
+    },
+    {
+      "derived": "state_valid_null_value",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/cadenceRpm/value": null
+      },
+      "why": "valid quality requires a number"
+    },
+    {
+      "derived": "state_slope_percent",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/slopeFraction/value": 2.1
+      },
+      "why": "Slope is a fraction, not percent"
+    },
+    {
+      "derived": "state_unavailable_without_reason",
+      "base": "valid/state_ready_no_sensors.json",
+      "schema": "state",
+      "valid": false,
+      "remove": [
+        "/metrics/powerW/reasonCode"
+      ],
+      "why": "Unavailable metric must carry a reason"
+    },
+    {
+      "derived": "state_missing_metric",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "remove": [
+        "/metrics/movingTimeMs"
+      ],
+      "why": "Metric set is fixed; absence is explicit"
+    },
+    {
+      "derived": "state_legacy_trainer_connected",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/trainerConnected": true
+      },
+      "why": "Legacy over-broad flag is not part of v1"
+    },
+    {
+      "derived": "state_legacy_speed_kph",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/metrics/speedKph": {
+          "value": 30.6,
+          "quality": "valid"
+        }
+      },
+      "why": "Canonical units only; no mixed legacy DTO"
+    },
+    {
+      "derived": "state_legacy_erg_mode",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/ergMode": "Engaged"
+      },
+      "why": "No ERG fields in v1 state"
+    },
+    {
+      "derived": "state_present_without_device",
+      "base": "valid/state_live_cycling.json",
+      "schema": "state",
+      "valid": false,
+      "set": {
+        "/sensors/0/deviceId": null
+      },
+      "why": "Present sensor must identify its device"
+    },
+    {
+      "derived": "command_set_active_bad_request_id",
+      "base": "valid/command_mod_set_active.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/requestId": "1"
+      },
+      "why": "requestId is a UUID"
+    },
+    {
+      "derived": "route_page_reverse_without_loop",
+      "base": "valid/routes_page.json",
+      "schema": "routes",
+      "valid": false,
+      "set": {
+        "/items/1/reverseAllowed": true
+      },
+      "why": "Reverse requires a loop-capable route"
+    },
+    {
+      "derived": "route_page_distance_string",
+      "base": "valid/routes_page.json",
+      "schema": "routes",
+      "valid": false,
+      "set": {
+        "/items/0/distanceM": "24.3"
+      },
+      "why": "No string numbers"
+    },
+    {
+      "derived": "route_page_extra_field",
+      "base": "valid/routes_page.json",
+      "schema": "routes",
+      "valid": false,
+      "set": {
+        "/items/0/listIndex": 3
+      },
+      "why": "List index is not part of the route identity"
+    },
+    {
+      "derived": "settings_editable_with_reason",
+      "base": "valid/settings_active_mod.json",
+      "schema": "settings",
+      "valid": false,
+      "set": {
+        "/profile/ftpW/reasonCode": "MOD_INACTIVE"
+      },
+      "why": "An editable field carries no blocking reason"
+    },
+    {
+      "derived": "settings_blocked_without_reason",
+      "base": "valid/settings_active_mod.json",
+      "schema": "settings",
+      "valid": false,
+      "set": {
+        "/ride/roadFeel/editable": false
+      },
+      "why": "A blocked field must explain why"
+    },
+    {
+      "derived": "workout_segment_percent_power",
+      "base": "valid/workout_detail.json",
+      "schema": "workouts",
+      "valid": false,
+      "set": {
+        "/workout/segments/1/startPowerW": 0.9
+      },
+      "why": "Reference power is whole watts, not a fraction of FTP"
+    },
+    {
+      "derived": "activity_detail_zero_instead_of_null",
+      "base": "valid/activity_detail.json",
+      "schema": "activities",
+      "valid": false,
+      "set": {
+        "/activity/source": "derived-records"
+      },
+      "why": "v1 summaries come from the FIT session only"
+    }
+  ]
+}

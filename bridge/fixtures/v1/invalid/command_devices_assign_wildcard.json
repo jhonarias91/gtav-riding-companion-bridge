@@ -1,0 +1,11 @@
+{
+  "requestId": "3b8c9d0e-1f2a-4b3c-9d4e-5f6a7b8c9d0e",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "devices.assign",
+  "expectedRevision": "devices-1a2b",
+  "args": {
+    "role": "resistance",
+    "sensorType": "FEC",
+    "deviceId": "0"
+  }
+}

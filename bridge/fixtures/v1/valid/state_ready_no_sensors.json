@@ -1,0 +1,32 @@
+{
+  "adapterInstanceId": "adapter-5b1d",
+  "sequence": 12,
+  "stateRevision": "state-2",
+  "capturedAtUtc": "2026-11-04T15:00:00Z",
+  "snapshotAgeMs": 240,
+  "sessionGeneration": "session-1",
+  "modVersion": "0.8.0.4",
+  "bindingProfile": "gtbikev-0804",
+  "layers": {"adapter":"fresh","binding":"compatible","mod":"dataReady","antReceiver":"ready","bleReceiver":"started","gameControl":"inControl"},
+  "sport": "unknown",
+  "metrics": {
+    "powerW": {"value":null,"quality":"unavailable","reasonCode":"SENSOR_MISSING"},
+    "speedMps": {"value":0,"quality":"valid","source":"virtual"},
+    "cadenceRpm": {"value":null,"quality":"unavailable","reasonCode":"SENSOR_MISSING"},
+    "heartRateBpm": {"value":null,"quality":"unavailable","reasonCode":"SENSOR_MISSING"},
+    "distanceM": {"value":0,"quality":"valid","source":"game"},
+    "ridingTimeMs": {"value":0,"quality":"valid","source":"game"},
+    "movingTimeMs": {"value":0,"quality":"valid","source":"game"},
+    "elevationGainM": {"value":0,"quality":"valid","source":"game"},
+    "elevationLossM": {"value":0,"quality":"valid","source":"game"},
+    "slopeFraction": {"value":0,"quality":"valid","source":"game"},
+    "windSpeedMps": {"value":null,"quality":"unavailable","reasonCode":"NOT_CAPTURED"},
+    "windDirRad": {"value":null,"quality":"unavailable","reasonCode":"NOT_CAPTURED"}
+  },
+  "sensors": [
+    {"role":"power","present":false,"source":"unknown","deviceId":null,"sensorType":"unknown"},
+    {"role":"heartRate","present":false,"source":"unknown","deviceId":null,"sensorType":"unknown"}
+  ],
+  "workout": {"present":false,"finished":null},
+  "activeRoute": null
+}

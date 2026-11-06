@@ -1,0 +1,13 @@
+{
+  "catalogRevision": "workouts-9f8e",
+  "ready": true,
+  "ftpReferenceW": 230,
+  "plans": [
+    {
+      "id": "p-0123456789abcdef",
+      "name": "Example Plan",
+      "description": "Synthetic plan.",
+      "workoutCount": 1
+    }
+  ]
+}

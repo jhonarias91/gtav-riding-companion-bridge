@@ -1,0 +1,29 @@
+{
+  "adapterInstanceId": null,
+  "sequence": null,
+  "stateRevision": null,
+  "capturedAtUtc": null,
+  "snapshotAgeMs": null,
+  "sessionGeneration": null,
+  "modVersion": null,
+  "bindingProfile": null,
+  "layers": {"adapter":"absent","binding":"unknown","mod":"unknown","antReceiver":"unknown","bleReceiver":"unknown","gameControl":"unknown"},
+  "sport": "unknown",
+  "metrics": {
+    "powerW": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "speedMps": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "cadenceRpm": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "heartRateBpm": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "distanceM": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "ridingTimeMs": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "movingTimeMs": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "elevationGainM": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "elevationLossM": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "slopeFraction": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "windSpeedMps": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"},
+    "windDirRad": {"value":null,"quality":"unavailable","reasonCode":"ADAPTER_ABSENT"}
+  },
+  "sensors": [],
+  "workout": {"present":null,"finished":null},
+  "activeRoute": null
+}

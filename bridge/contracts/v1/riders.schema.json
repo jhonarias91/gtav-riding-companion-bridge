@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/riders.schema.json",
+  "title": "GET /api/v1/riders",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["connected", "course", "busiestRoute", "riders"],
+  "properties": {
+    "connected": { "type": "boolean", "description": "PC multiplayer session connection." },
+    "course": { "$ref": "#/$defs/course" },
+    "busiestRoute": { "$ref": "#/$defs/course" },
+    "riders": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rank", "kind", "name", "wattsPerKg", "speedMps"],
+        "properties": {
+          "rank": { "type": "integer", "minimum": 1, "maximum": 64 },
+          "kind": { "enum": ["local", "human", "bot", "unknown"] },
+          "name": { "type": ["string", "null"], "minLength": 1, "maxLength": 80 },
+          "wattsPerKg": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+          "speedMps": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "connected": { "const": false } } },
+      "then": { "properties": { "busiestRoute": { "type": "null" } } }
+    }
+  ],
+  "$defs": {
+    "course": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["id", "reverse"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[1-9][0-9]{0,4}$" },
+        "reverse": { "type": "boolean" }
+      }
+    }
+  }
+}

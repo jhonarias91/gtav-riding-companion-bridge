@@ -1,0 +1,11 @@
+{
+  "requestId": "5d6e7f80-9a1b-4c2d-8e3f-4a5b6c7d8e9f",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "devices.disconnect",
+  "expectedRevision": "devices-1a2b",
+  "args": {
+    "role": "heartRate",
+    "sensorType": "HR",
+    "deviceId": "212205442170882"
+  }
+}

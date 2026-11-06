@@ -1,0 +1,63 @@
+{
+  "policyVersion": "v1-p13",
+  "status": "proposal",
+  "note": "Machine-readable allowlist and denylist for the native Android scope. Enforced in bridge, adapter and tests, not only by hiding UI.",
+  "capabilityCatalog": [
+    { "id": "metrics.read", "phase": "P2", "kind": "read", "helpId": "connection.status" },
+    { "id": "sensors.read", "phase": "P2", "kind": "read", "helpId": "devices.policy" },
+    { "id": "activity.read", "phase": "P2", "kind": "read", "helpId": "metrics.movingTime" },
+    { "id": "mod.setActive", "phase": "P2", "kind": "write", "helpId": "mod.activate", "commandType": "mod.setActive" },
+    { "id": "routes.read", "phase": "P3", "kind": "read", "helpId": "routes.browse" },
+    { "id": "routes.preview", "phase": "P3", "kind": "write", "helpId": "routes.pcPreview", "commandType": "routes.preview" },
+    { "id": "routes.apply", "phase": "P3", "kind": "write", "helpId": "routes.apply", "commandType": "routes.apply", "note": "Since 2026-11-06 (user decision) allowed during a workout, as the mod menu is: the activity is saved and the unfinished workout restarts from its countdown on the new route (ERG on). The phone warns first." },
+    { "id": "ui.openPanel", "phase": "P3", "kind": "write", "helpId": "routes.pcPreview", "commandType": "ui.openPanel" },
+    { "id": "ui.closePanel", "phase": "P3", "kind": "write", "helpId": "routes.pcPreview", "commandType": "ui.closePanel" },
+    { "id": "profile.read", "phase": "P4", "kind": "read", "helpId": "profile.ftp" },
+    { "id": "profile.update", "phase": "P4", "kind": "write", "helpId": "profile.ftp", "commandType": "profile.update" },
+    { "id": "rideSettings.update", "phase": "P4", "kind": "write", "helpId": "ride.difficulty", "commandType": "rideSettings.update" },
+    { "id": "appearance.select", "phase": "P4", "kind": "write", "helpId": "appearance.bike", "commandType": "appearance.select" },
+    { "id": "devices.configure", "phase": "P5", "kind": "write", "helpId": "devices.policy", "commandType": "devices.configure" },
+    { "id": "devices.assign", "phase": "P11", "kind": "write", "helpId": "devices.phoneScan", "commandType": "devices.assign" },
+    { "id": "devices.disconnect", "phase": "P12", "kind": "write", "helpId": "devices.phoneScan", "commandType": "devices.disconnect" },
+    { "id": "workouts.read", "phase": "P6", "kind": "read", "helpId": "training.catalog" },
+    { "id": "workouts.observe", "phase": "P6", "kind": "read", "helpId": "training.progress" },
+    { "id": "workouts.select", "phase": "P13", "kind": "write", "helpId": "training.select", "commandType": "workouts.select", "note": "Requested by the user on 2026-11-06. Only the native Select path; the mod engages ERG itself. Like the mod menu, it replaces a running workout (the phone warns first; the old workout bot is retired). Workout.End stays forbidden." },
+    { "id": "activities.list", "phase": "P7", "kind": "read", "helpId": "activity.history" },
+    { "id": "activities.download", "phase": "P7", "kind": "read", "helpId": "activity.download" },
+    { "id": "activities.finish", "phase": "P7", "kind": "write", "helpId": "activity.save", "indirectGuard": "workout-not-finished", "commandType": "activities.finish" },
+    { "id": "riders.read", "phase": "P8b", "kind": "read", "helpId": "multiplayer.riders" },
+    { "id": "multiplayer.joinBusiestRoute", "phase": "P8b", "kind": "write", "helpId": "multiplayer.join", "indirectGuard": "workout-not-finished" },
+    { "id": "map.position", "phase": "P8a", "kind": "read", "helpId": "map.gameWorld" },
+    { "id": "advancedSettings.update", "phase": "P8c", "kind": "write", "helpId": "advanced.bots" }
+  ],
+  "forbiddenCapabilities": [
+    "erg", "erc", "target-power", "targetPower", "workouts.start", "workouts.pause",
+    "workouts.resume", "workouts.skip", "workouts.bias", "workouts.end", "gears.shift", "strava.upload",
+    "activities.delete", "activities.discard", "config.write", "ui.key", "reflection.invoke"
+  ],
+  "forbiddenCommandPatterns": [
+    "^erg", "^erc", "target", "bias", "powerAdjust", "^workouts?\\.(?!(read|observe|select)$)", "^strava\\.", "delete", "discard", "^config\\.", "^ui\\.key", "invoke"
+  ],
+  "forbiddenAdapterMembers": [
+    { "member": "GTBikeV.DataTransceiver.ERGMode", "access": "set", "evidence": "DataTransceiver.cs:258" },
+    { "member": "GTBikeV.DataTransceiver.SetTargetPower(short)", "access": "invoke", "evidence": "DataTransceiver.cs:968" },
+    { "member": "GTBikeV.GTBikeVScript.OnWorkoutSelected(Workout)", "access": "invoke", "evidence": "GTBikeVScript.cs:1742 (activates ERG at 1773). P13 reaches it only by raising WorkoutSelectionView.OnWorkoutSelected, like the native Select button, on the mod's own Tick." },
+    { "member": "GTBikeV.GTBikeVScript.WorkoutSelectedHandler", "access": "invoke", "evidence": "GTBikeVScript.cs:1551 (never called directly; see workouts.select)" },
+    { "member": "GTBikeV.GTBikeVScript.CreateNewActivity()", "access": "invoke", "evidence": "GTBikeVScript.cs:1250 re-calls OnWorkoutSelected for unfinished workout" },
+    { "member": "GTBikeV.Workouts.Workout.PowerAdjust", "access": "set", "evidence": "Workout.cs:139; GTBikeVScript.cs:1061/1076" },
+    { "member": "GTBikeV.Workouts.Workout.End", "access": "invoke", "evidence": "INVENTARIO_CSHARP.md: ConfirmWorkoutFinished chain" },
+    { "member": "ActivitySummaryView accept/discard handlers", "access": "invoke", "evidence": "UI/ActivitySummaryView.cs:177 (Strava upload / file deletion)" }
+  ],
+  "indirectGuards": {
+    "workout-not-finished": {
+      "rule": "Reject with WORKOUT_PC_CONTROL_REQUIRED when Multiplayer.CurrentActivity.Workout != null && !Workout.Finished.",
+      "reason": "SaveCurrentActivity (GTBikeVScript.cs:1564) and course initialization call CreateNewActivity, which re-invokes OnWorkoutSelected and re-engages ERG.",
+      "reasonCode": "WORKOUT_PC_CONTROL_REQUIRED"
+    }
+  },
+  "modSetActiveGuard": {
+    "rule": "Native ActivateModHandler (GTBikeVScript.cs:1425) is a toggle on IsDTOK. enabled=true allowed only if IsDTOK==false and no receiver in {initialized, started, complete, stopping}. enabled=false allowed only if IsDTOK==true and no receiver in {stopping}. enabled equal to observed state is a no-op that reaches 'applied' without invoking the handler.",
+    "reasonCode": "MOD_TRANSITION_IN_PROGRESS",
+    "evidence": "DataTransceiver.cs:193-220 (IsDTOK includes STOPPING), 431-604 (state transitions)"
+  }
+}

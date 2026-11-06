@@ -1,0 +1,30 @@
+{
+  "assetId": "map-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "calibrationRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "width": 700,
+  "height": 900,
+  "sequence": 4217,
+  "position": {
+    "u": 0.41,
+    "v": 0.62
+  },
+  "route": {
+    "id": "35",
+    "reverse": false,
+    "waypoints": [
+      {
+        "u": 0.4,
+        "v": 0.6
+      },
+      {
+        "u": 0.42,
+        "v": 0.63
+      },
+      null,
+      {
+        "u": 0.45,
+        "v": 0.66
+      }
+    ]
+  }
+}

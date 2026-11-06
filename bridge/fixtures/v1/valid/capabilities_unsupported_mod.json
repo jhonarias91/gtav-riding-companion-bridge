@@ -1,0 +1,9 @@
+{
+  "modVersion": "0.8.1.0",
+  "bindingProfile": null,
+  "adapterInstanceId": "adapter-9e02",
+  "capabilities": [
+    {"id":"metrics.read","available":false,"reasonCode":"UNSUPPORTED_VERSION","helpId":"connection.compatibility","applyMode":null},
+    {"id":"mod.setActive","available":false,"reasonCode":"UNSUPPORTED_VERSION","helpId":"connection.compatibility","applyMode":"async"}
+  ]
+}

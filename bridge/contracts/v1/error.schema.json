@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/error.schema.json",
+  "title": "Error envelope (any 4xx/5xx JSON response)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["error"],
+  "properties": {
+    "error": { "$ref": "common.schema.json#/$defs/errorBody" }
+  }
+}

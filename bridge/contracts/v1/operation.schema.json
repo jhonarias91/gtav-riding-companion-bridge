@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/operation.schema.json",
+  "title": "202 body of POST /api/v1/commands and GET /api/v1/operations/{requestId}",
+  "description": "received -> validated -> dispatched -> pending -> applied | failed | unknown; validated -> rejected. 'applied' requires observed evidence, never just a handler call.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operationId", "requestId", "type", "status", "createdAtUtc", "updatedAtUtc", "error", "observed"],
+  "properties": {
+    "operationId": { "$ref": "common.schema.json#/$defs/opaqueId" },
+    "requestId": { "$ref": "common.schema.json#/$defs/requestId" },
+    "type": { "$ref": "command.schema.json#/$defs/commandType" },
+    "status": { "enum": ["received", "validated", "dispatched", "pending", "applied", "rejected", "failed", "unknown"] },
+    "createdAtUtc": { "$ref": "common.schema.json#/$defs/utcTimestamp" },
+    "updatedAtUtc": { "$ref": "common.schema.json#/$defs/utcTimestamp" },
+    "error": { "anyOf": [{ "$ref": "common.schema.json#/$defs/errorBody" }, { "type": "null" }] },
+    "observed": { "description": "Evidence read back after dispatch.", "type": ["object", "null"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "applied" } } },
+      "then": { "properties": { "observed": { "type": "object" }, "error": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "status": { "enum": ["rejected", "failed"] } } },
+      "then": { "properties": { "error": { "$ref": "common.schema.json#/$defs/errorBody" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "mod.setActive" } } },
+      "then": {
+        "properties": {
+          "observed": {
+            "anyOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["mod", "antReceiver", "bleReceiver", "sequence"],
+                "properties": {
+                  "mod": { "$ref": "common.schema.json#/$defs/modLayer" },
+                  "antReceiver": { "$ref": "common.schema.json#/$defs/receiverState" },
+                  "bleReceiver": { "$ref": "common.schema.json#/$defs/receiverState" },
+                  "sequence": { "type": "integer", "minimum": 0 }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

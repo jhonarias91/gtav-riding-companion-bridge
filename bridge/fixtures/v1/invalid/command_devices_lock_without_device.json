@@ -1,0 +1,12 @@
+{
+  "requestId": "2a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "devices.configure",
+  "expectedRevision": "devices-1a2b",
+  "args": {
+    "role": "heartRate",
+    "action": "lock",
+    "expectedDeviceId": null,
+    "expectedSource": null
+  }
+}

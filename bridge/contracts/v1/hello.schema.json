@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/hello.schema.json",
+  "title": "GET /api/v1/hello",
+  "description": "Unauthenticated. Minimal identity only: no sensors, profile, files, PIN state or LAN addresses.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["service", "apiMajor", "apiMinor", "bridgeId", "bridgeVersion", "authRequired", "transport", "nativePairing"],
+  "properties": {
+    "service": { "const": "gtav-riding-companion-bridge" },
+    "apiMajor": { "const": 1 },
+    "apiMinor": { "type": "integer", "minimum": 0 },
+    "bridgeId": { "$ref": "common.schema.json#/$defs/opaqueId" },
+    "bridgeVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "authRequired": { "const": true },
+    "transport": {
+      "description": "http-dev exists only for explicit development builds. Release clients reject it.",
+      "enum": ["https", "http-dev"]
+    },
+    "nativePairing": {
+      "description": "True when POST /api/v1/pair accepts native clients without browser Origin.",
+      "type": "boolean"
+    }
+  }
+}

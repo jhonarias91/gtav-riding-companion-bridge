@@ -1,0 +1,10 @@
+{
+  "requestId": "0d5a6f3c-7b8e-4d9f-8a1b-5c6d7e8f9a0b",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "appearance.select",
+  "expectedRevision": "settings-9",
+  "args": {
+    "bikeId": "Example Gravel",
+    "characterId": "Example Rider"
+  }
+}

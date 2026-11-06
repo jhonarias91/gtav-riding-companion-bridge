@@ -1,0 +1,9 @@
+{
+  "requestId": "9c4f5e2b-6a7d-4c8e-9f0a-4b5c6d7e8f9a",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "rideSettings.update",
+  "expectedRevision": "settings-9",
+  "args": {
+    "difficulty": 75
+  }
+}

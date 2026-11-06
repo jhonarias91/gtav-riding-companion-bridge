@@ -1,0 +1,23 @@
+{
+  "catalogRevision": "catalog-3f2a",
+  "route": {
+    "id": "35",
+    "name": "Example Coastal Loop",
+    "author": "Example Author",
+    "distanceM": 24300,
+    "elevationGainM": 310,
+    "elevationLossM": 310,
+    "maxElevationM": 120,
+    "categories": [
+      "Flat"
+    ],
+    "types": [
+      "Road"
+    ],
+    "loopAllowed": true,
+    "reverseAllowed": true,
+    "version": "1.0",
+    "description": "Synthetic description for contract tests.",
+    "notes": null
+  }
+}

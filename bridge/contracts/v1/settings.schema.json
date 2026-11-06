@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/settings.schema.json",
+  "title": "GET /api/v1/settings",
+  "description": "P4. Whitelisted profile, ride and appearance values read back from the mod (Config.* and UI.Menus.*). Never the INI file. No power target, ERG, gear or bias field can be expressed. Each field says whether the mod currently lets it change (the native menu disables most items while the mod is inactive).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["settingsRevision", "profile", "ride", "appearance"],
+  "properties": {
+    "settingsRevision": { "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["weightKg", "ftpW", "hrMaxBpm"],
+      "properties": {
+        "weightKg": { "$ref": "#/$defs/numberSetting" },
+        "ftpW": { "$ref": "#/$defs/numberSetting" },
+        "hrMaxBpm": { "$ref": "#/$defs/numberSetting" }
+      }
+    },
+    "ride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["autopilot", "avoidObstacles", "difficulty", "roadFeel"],
+      "properties": {
+        "autopilot": { "$ref": "#/$defs/boolSetting" },
+        "avoidObstacles": { "$ref": "#/$defs/boolSetting" },
+        "difficulty": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "editable", "reasonCode", "allowed"],
+          "properties": {
+            "value": { "anyOf": [{ "enum": [0, 25, 50, 75, 100, 255] }, { "type": "null" }] },
+            "editable": { "type": "boolean" },
+            "reasonCode": { "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }] },
+            "allowed": { "type": "array", "items": { "enum": [0, 25, 50, 75, 100, 255] }, "maxItems": 6 }
+          },
+          "allOf": [{ "$ref": "#/$defs/editableRule" }]
+        },
+        "roadFeel": { "$ref": "#/$defs/boolSetting" }
+      }
+    },
+    "appearance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bike", "character"],
+      "properties": {
+        "bike": { "$ref": "#/$defs/choiceSetting" },
+        "character": { "$ref": "#/$defs/choiceSetting" }
+      }
+    }
+  },
+  "$defs": {
+    "editableRule": {
+      "if": { "properties": { "editable": { "const": false } } },
+      "then": { "properties": { "reasonCode": { "$ref": "common.schema.json#/$defs/reasonCode" } } },
+      "else": { "properties": { "reasonCode": { "type": "null" } } }
+    },
+    "numberSetting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "min", "max", "editable", "reasonCode"],
+      "properties": {
+        "value": { "type": ["number", "null"] },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "editable": { "type": "boolean" },
+        "reasonCode": { "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }] }
+      },
+      "allOf": [{ "$ref": "#/$defs/editableRule" }]
+    },
+    "boolSetting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "editable", "reasonCode"],
+      "properties": {
+        "value": { "type": ["boolean", "null"] },
+        "editable": { "type": "boolean" },
+        "reasonCode": { "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }] }
+      },
+      "allOf": [{ "$ref": "#/$defs/editableRule" }]
+    },
+    "choiceSetting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selectedId", "options", "editable", "reasonCode"],
+      "properties": {
+        "selectedId": { "anyOf": [{ "$ref": "command.schema.json#/$defs/catalogKey" }, { "type": "null" }] },
+        "options": {
+          "description": "Order and names as the mod lists them. Names are third-party data, not translated.",
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "$ref": "command.schema.json#/$defs/catalogKey" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 80 }
+            }
+          }
+        },
+        "editable": { "type": "boolean" },
+        "reasonCode": { "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }] }
+      },
+      "allOf": [{ "$ref": "#/$defs/editableRule" }]
+    }
+  }
+}

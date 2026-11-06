@@ -1,0 +1,122 @@
+{
+  "devicesRevision": "devices-1a2b",
+  "reasonCode": null,
+  "roles": [
+    {
+      "role": "power",
+      "visible": true,
+      "current": {
+        "deviceId": "54321",
+        "source": "ANT",
+        "sensorType": "FEC",
+        "name": null
+      },
+      "policy": "auto",
+      "entries": [],
+      "actions": {
+        "auto": false,
+        "lock": true,
+        "skip": true
+      }
+    },
+    {
+      "role": "resistance",
+      "visible": true,
+      "current": {
+        "deviceId": "54321",
+        "source": "ANT",
+        "sensorType": "FEC"
+      },
+      "policy": "locked",
+      "entries": [
+        {
+          "deviceId": "54321",
+          "source": "ANT",
+          "sensorType": "FEC",
+          "excluded": false
+        }
+      ],
+      "actions": {
+        "auto": true,
+        "lock": false,
+        "skip": false
+      }
+    },
+    {
+      "role": "cadence",
+      "visible": true,
+      "current": {
+        "deviceId": "54321",
+        "source": "ANT",
+        "sensorType": "FEC"
+      },
+      "policy": "auto",
+      "entries": [],
+      "actions": {
+        "auto": false,
+        "lock": true,
+        "skip": true
+      }
+    },
+    {
+      "role": "heartRate",
+      "visible": true,
+      "current": {
+        "deviceId": "18446744073709551615",
+        "source": "BLE",
+        "sensorType": "HR",
+        "name": "Polar H10 A1B2C3D4"
+      },
+      "policy": "filtered",
+      "entries": [
+        {
+          "deviceId": "777",
+          "source": "ANT",
+          "sensorType": "HR",
+          "excluded": true
+        }
+      ],
+      "actions": {
+        "auto": true,
+        "lock": true,
+        "skip": true
+      }
+    },
+    {
+      "role": "steering",
+      "visible": true,
+      "current": null,
+      "policy": "auto",
+      "entries": [],
+      "actions": {
+        "auto": false,
+        "lock": false,
+        "skip": false
+      }
+    },
+    {
+      "role": "controls",
+      "visible": true,
+      "current": null,
+      "policy": "auto",
+      "entries": [],
+      "actions": {
+        "auto": false,
+        "lock": false,
+        "skip": false
+      }
+    },
+    {
+      "role": "runningSpeed",
+      "visible": false,
+      "current": null,
+      "policy": "auto",
+      "entries": [],
+      "actions": {
+        "auto": false,
+        "lock": false,
+        "skip": false
+      }
+    }
+  ]
+}

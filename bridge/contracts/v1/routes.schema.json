@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/routes.schema.json",
+  "title": "GET /api/v1/routes and GET /api/v1/routes/{id}",
+  "description": "P3. Route catalog read from the mod's own course list (Menus.courseSelectionView.ItemList, CourseRetriever.CourseInfo). Reading never moves the PC selector or applies anything. Canonical units: m. The list is paginated; detail adds long texts.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/page" },
+    { "$ref": "#/$defs/detail" }
+  ],
+  "$defs": {
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogRevision", "total", "offset", "items"],
+      "properties": {
+        "catalogRevision": { "description": "Changes when the mod's list changes. Commands quote it.", "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
+        "total": { "type": "integer", "minimum": 0, "maximum": 5000 },
+        "offset": { "type": "integer", "minimum": 0 },
+        "items": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/summary" } }
+      }
+    },
+    "detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogRevision", "route"],
+      "properties": {
+        "catalogRevision": { "$ref": "common.schema.json#/$defs/opaqueId" },
+        "route": {
+          "allOf": [{ "$ref": "#/$defs/summaryFields" }],
+          "type": "object",
+          "unevaluatedProperties": false,
+          "required": ["description", "notes"],
+          "properties": {
+            "description": { "type": ["string", "null"], "maxLength": 1200 },
+            "notes": { "type": ["string", "null"], "maxLength": 1200 }
+          }
+        }
+      }
+    },
+    "summary": {
+      "allOf": [{ "$ref": "#/$defs/summaryFields" }],
+      "type": "object",
+      "unevaluatedProperties": false
+    },
+    "summaryFields": {
+      "type": "object",
+      "required": ["id", "name", "author", "distanceM", "elevationGainM", "elevationLossM", "maxElevationM", "categories", "types", "loopAllowed", "reverseAllowed", "version"],
+      "properties": {
+        "id": { "$ref": "command.schema.json#/$defs/routeId" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "author": { "description": "Third-party name kept as written; never translated.", "type": ["string", "null"], "maxLength": 120 },
+        "distanceM": { "description": "CourseInfo.Distance is km; the adapter converts.", "type": ["number", "null"], "minimum": 0, "maximum": 10000000 },
+        "elevationGainM": { "type": ["number", "null"], "minimum": 0, "maximum": 100000 },
+        "elevationLossM": { "type": ["number", "null"], "minimum": 0, "maximum": 100000 },
+        "maxElevationM": { "type": ["number", "null"], "minimum": -1000, "maximum": 10000 },
+        "categories": { "type": "array", "maxItems": 8, "items": { "type": "string", "minLength": 1, "maxLength": 40 } },
+        "types": { "type": "array", "maxItems": 8, "items": { "type": "string", "minLength": 1, "maxLength": 40 } },
+        "loopAllowed": { "type": "boolean" },
+        "reverseAllowed": { "description": "The native selector shows Reverse only for loop-capable routes.", "type": "boolean" },
+        "version": { "type": ["string", "null"], "maxLength": 32 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "loopAllowed": { "const": false } } },
+          "then": { "properties": { "reverseAllowed": { "const": false } } }
+        }
+      ]
+    }
+  }
+}

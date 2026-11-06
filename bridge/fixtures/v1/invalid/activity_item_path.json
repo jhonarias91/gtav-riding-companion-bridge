@@ -1,0 +1,13 @@
+{
+  "available": true,
+  "total": 1,
+  "offset": 0,
+  "items": [
+    {
+      "id": "a-0123456789abcdef",
+      "fileName": "C:\\Users\\x\\ride.fit",
+      "modifiedUtc": "2026-11-04T13:00:00.000Z",
+      "sizeBytes": 10
+    }
+  ]
+}

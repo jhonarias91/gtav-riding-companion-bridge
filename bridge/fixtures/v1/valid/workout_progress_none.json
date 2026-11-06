@@ -1,0 +1,12 @@
+{
+  "present": false,
+  "name": null,
+  "started": null,
+  "inCountdown": null,
+  "finished": null,
+  "durationType": null,
+  "elapsed": null,
+  "total": null,
+  "segmentCount": null,
+  "segment": null
+}

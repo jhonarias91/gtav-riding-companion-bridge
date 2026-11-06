@@ -1,0 +1,9 @@
+{
+  "connected": true,
+  "course": null,
+  "busiestRoute": {
+    "id": "12",
+    "reverse": true
+  },
+  "riders": []
+}

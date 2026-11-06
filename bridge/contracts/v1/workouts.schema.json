@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/workouts.schema.json",
+  "title": "GET /api/v1/workout-plans, /api/v1/workouts?planId=, /api/v1/workouts/{id}, /api/v1/workout-progress",
+  "description": "P6, read only. Plans and workouts as the mod parses them (WorkoutRetriever.WorkoutLib, WorkoutRetriever.GetWorkouts, ZwiftWorkout). Reading never selects, starts, pauses, skips, biases or ends a workout. Reference watts are what the mod computed from the FTP shown in ftpReferenceW; they are information, not a target the phone can set.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/plans" },
+    { "$ref": "#/$defs/list" },
+    { "$ref": "#/$defs/detail" },
+    { "$ref": "#/$defs/progress" }
+  ],
+  "$defs": {
+    "workoutId": { "type": "string", "pattern": "^w-[a-f0-9]{16}$" },
+    "planId": { "type": "string", "pattern": "^p-[a-f0-9]{16}$" },
+    "durationType": { "description": "time: seconds. distance: metres (Workout.TimeDuration).", "enum": ["time", "distance"] },
+    "plans": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogRevision", "ready", "ftpReferenceW", "plans"],
+      "properties": {
+        "catalogRevision": { "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
+        "ready": { "description": "False while the mod is still downloading or the adapter is still parsing.", "type": "boolean" },
+        "ftpReferenceW": { "type": ["number", "null"], "minimum": 0, "maximum": 2000 },
+        "plans": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "name", "description", "workoutCount"],
+            "properties": {
+              "id": { "$ref": "#/$defs/planId" },
+              "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+              "description": { "type": ["string", "null"], "maxLength": 1200 },
+              "workoutCount": { "type": "integer", "minimum": 0, "maximum": 1000 }
+            }
+          }
+        }
+      }
+    },
+    "summaryFields": {
+      "type": "object",
+      "required": ["id", "planId", "name", "author", "durationType", "total", "segmentCount"],
+      "properties": {
+        "id": { "$ref": "#/$defs/workoutId" },
+        "planId": { "$ref": "#/$defs/planId" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "author": { "type": ["string", "null"], "maxLength": 120 },
+        "durationType": { "$ref": "#/$defs/durationType" },
+        "total": { "type": "number", "minimum": 0 },
+        "segmentCount": { "type": "integer", "minimum": 0, "maximum": 2000 }
+      }
+    },
+    "summary": { "allOf": [{ "$ref": "#/$defs/summaryFields" }], "type": "object", "unevaluatedProperties": false },
+    "list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogRevision", "planId", "workouts"],
+      "properties": {
+        "catalogRevision": { "$ref": "common.schema.json#/$defs/opaqueId" },
+        "planId": { "$ref": "#/$defs/planId" },
+        "workouts": { "type": "array", "maxItems": 1000, "items": { "$ref": "#/$defs/summary" } }
+      }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "type", "start", "end", "startPowerW", "endPowerW", "cadenceRpm"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "type": { "enum": ["warmup", "cooldown", "interval", "steady", "ramp", "freeRide", "unknown"] },
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 },
+        "startPowerW": { "type": ["integer", "null"], "minimum": 0, "maximum": 5000 },
+        "endPowerW": { "type": ["integer", "null"], "minimum": 0, "maximum": 5000 },
+        "cadenceRpm": { "type": ["integer", "null"], "minimum": 1, "maximum": 254 }
+      }
+    },
+    "detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalogRevision", "ftpReferenceW", "workout"],
+      "properties": {
+        "catalogRevision": { "$ref": "common.schema.json#/$defs/opaqueId" },
+        "ftpReferenceW": { "type": ["number", "null"], "minimum": 0, "maximum": 2000 },
+        "workout": {
+          "allOf": [{ "$ref": "#/$defs/summaryFields" }],
+          "type": "object",
+          "unevaluatedProperties": false,
+          "required": ["description", "segments"],
+          "properties": {
+            "description": { "type": ["string", "null"], "maxLength": 2000 },
+            "segments": { "type": "array", "maxItems": 2000, "items": { "$ref": "#/$defs/segment" } }
+          }
+        }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "name", "started", "inCountdown", "finished", "durationType", "elapsed", "total", "segmentCount", "segment"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "name": { "type": ["string", "null"], "maxLength": 120 },
+        "started": { "type": ["boolean", "null"] },
+        "inCountdown": { "type": ["boolean", "null"] },
+        "finished": { "type": ["boolean", "null"] },
+        "durationType": { "anyOf": [{ "$ref": "#/$defs/durationType" }, { "type": "null" }] },
+        "elapsed": { "type": ["number", "null"], "minimum": 0 },
+        "total": { "type": ["number", "null"], "minimum": 0 },
+        "segmentCount": { "type": ["integer", "null"], "minimum": 0 },
+        "segment": { "anyOf": [{ "$ref": "#/$defs/segment" }, { "type": "null" }] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "present": { "const": false } } },
+          "then": { "properties": { "name": { "type": "null" }, "segment": { "type": "null" }, "elapsed": { "type": "null" } } }
+        }
+      ]
+    }
+  }
+}

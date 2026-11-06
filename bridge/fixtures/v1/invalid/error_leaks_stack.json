@@ -1,0 +1,1 @@
+{"error":{"code":"INTERNAL","helpId":null,"retryable":false,"operationId":null,"details":{"stack":"System.InvalidOperationException: Miembro incompatible: Power_w\r\n   at CompanionBridge.GTBikeApi.Require(String name, Type type) in C:\\Users\\someone\\Documents\\GTBikeVCompanion\\GTBikeApi.cs:line 27 and many more frames that exceed the sanitized limit"}}}

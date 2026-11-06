@@ -1,0 +1,29 @@
+{
+  "activity": {
+    "id": "a-0123456789abcdef",
+    "fileName": "GTBikeV_20261104_120000.fit",
+    "sizeBytes": 182340,
+    "source": "fit-session",
+    "sport": "cycling",
+    "startUtc": "2026-11-04T12:00:00.000Z",
+    "elapsedS": 3700,
+    "movingS": 3600,
+    "distanceM": 30120,
+    "ascentM": 410,
+    "avgPowerW": 185,
+    "maxPowerW": 610,
+    "avgHeartRateBpm": 142,
+    "maxHeartRateBpm": 171,
+    "avgCadenceRpm": 87,
+    "calories": 640,
+    "power": {
+      "bucketS": 10,
+      "values": [
+        180,
+        182,
+        null,
+        190
+      ]
+    }
+  }
+}

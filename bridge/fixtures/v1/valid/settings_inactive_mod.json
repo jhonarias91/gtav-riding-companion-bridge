@@ -1,0 +1,70 @@
+{
+  "settingsRevision": "settings-2",
+  "profile": {
+    "weightKg": {
+      "value": 72,
+      "min": 40,
+      "max": 150,
+      "editable": false,
+      "reasonCode": "MOD_INACTIVE"
+    },
+    "ftpW": {
+      "value": 230,
+      "min": 50,
+      "max": 500,
+      "editable": false,
+      "reasonCode": "MOD_INACTIVE"
+    },
+    "hrMaxBpm": {
+      "value": 185,
+      "min": 50,
+      "max": 220,
+      "editable": true,
+      "reasonCode": null
+    }
+  },
+  "ride": {
+    "autopilot": {
+      "value": false,
+      "editable": false,
+      "reasonCode": "MOD_INACTIVE"
+    },
+    "avoidObstacles": {
+      "value": false,
+      "editable": false,
+      "reasonCode": "MOD_INACTIVE"
+    },
+    "difficulty": {
+      "value": 100,
+      "editable": false,
+      "reasonCode": "MOD_INACTIVE",
+      "allowed": [
+        0,
+        25,
+        50,
+        75,
+        100,
+        255
+      ]
+    },
+    "roadFeel": {
+      "value": true,
+      "editable": false,
+      "reasonCode": "MOD_INACTIVE"
+    }
+  },
+  "appearance": {
+    "bike": {
+      "selectedId": null,
+      "options": [],
+      "editable": false,
+      "reasonCode": "MOD_INACTIVE"
+    },
+    "character": {
+      "selectedId": null,
+      "options": [],
+      "editable": false,
+      "reasonCode": "MOD_INACTIVE"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "gtav-riding-companion-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows PC bridge and GTA V adapter for the GTAV Riding Companion Android app",
+  "type": "module",
+  "engines": {
+    "node": ">=22.2"
+  },
+  "scripts": {
+    "start": "node bridge/start-v1.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@garmin/fitsdk": "^21.0.0",
+    "qrcode-generator": "2.0.4"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "esbuild": "^0.25.0"
+  }
+}

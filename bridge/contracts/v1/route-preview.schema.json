@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/route-preview.schema.json",
+  "title": "GET /api/v1/route-preview",
+  "description": "P3. What the PC route selector shows right now. Always separate from state.activeRoute: a preview is never the active course. Changes made with the PC keyboard or mouse appear here too.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["catalogRevision", "panelOpen", "routeId", "loop", "reverse", "previewRevision"],
+  "properties": {
+    "catalogRevision": { "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
+    "panelOpen": { "type": "boolean" },
+    "routeId": { "description": "null = free ride entry or panel closed.", "anyOf": [{ "$ref": "command.schema.json#/$defs/routeId" }, { "type": "null" }] },
+    "loop": { "type": ["boolean", "null"] },
+    "reverse": { "type": ["boolean", "null"] },
+    "previewRevision": { "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "panelOpen": { "const": false } } },
+      "then": { "properties": { "routeId": { "type": "null" }, "loop": { "type": "null" }, "reverse": { "type": "null" } } }
+    }
+  ]
+}

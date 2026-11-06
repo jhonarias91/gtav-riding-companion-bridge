@@ -1,0 +1,20 @@
+{
+  "present": true,
+  "name": "Example Sweet Spot",
+  "started": true,
+  "inCountdown": false,
+  "finished": false,
+  "durationType": "time",
+  "elapsed": 812,
+  "total": 2700,
+  "segmentCount": 3,
+  "segment": {
+    "index": 1,
+    "type": "steady",
+    "start": 600,
+    "end": 2400,
+    "startPowerW": 207,
+    "endPowerW": 207,
+    "cadenceRpm": 90
+  }
+}

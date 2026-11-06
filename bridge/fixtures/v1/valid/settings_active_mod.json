@@ -1,0 +1,84 @@
+{
+  "settingsRevision": "settings-9",
+  "profile": {
+    "weightKg": {
+      "value": 72,
+      "min": 40,
+      "max": 150,
+      "editable": true,
+      "reasonCode": null
+    },
+    "ftpW": {
+      "value": 230,
+      "min": 50,
+      "max": 500,
+      "editable": true,
+      "reasonCode": null
+    },
+    "hrMaxBpm": {
+      "value": 185,
+      "min": 50,
+      "max": 220,
+      "editable": true,
+      "reasonCode": null
+    }
+  },
+  "ride": {
+    "autopilot": {
+      "value": true,
+      "editable": true,
+      "reasonCode": null
+    },
+    "avoidObstacles": {
+      "value": false,
+      "editable": false,
+      "reasonCode": "AUTOPILOT_ON"
+    },
+    "difficulty": {
+      "value": 50,
+      "editable": true,
+      "reasonCode": null,
+      "allowed": [
+        0,
+        25,
+        50,
+        75,
+        100,
+        255
+      ]
+    },
+    "roadFeel": {
+      "value": true,
+      "editable": true,
+      "reasonCode": null
+    }
+  },
+  "appearance": {
+    "bike": {
+      "selectedId": "Example Road Bike",
+      "options": [
+        {
+          "id": "Example Road Bike",
+          "label": "Example Road Bike"
+        },
+        {
+          "id": "Example Gravel",
+          "label": "Example Gravel"
+        }
+      ],
+      "editable": true,
+      "reasonCode": null
+    },
+    "character": {
+      "selectedId": "Example Rider",
+      "options": [
+        {
+          "id": "Example Rider",
+          "label": "Example Rider"
+        }
+      ],
+      "editable": true,
+      "reasonCode": null
+    }
+  }
+}
