@@ -6,9 +6,17 @@ Un puente local para Windows que permite consultar y controlar desde un teléfon
 
 Este repositorio contiene los componentes que se ejecutan en el PC. La app para el teléfono está en un repositorio aparte: **[gtav-riding-companion-android](https://github.com/jhonarias91/gtav-riding-companion-android/blob/HEAD/README_ES.md)**. Consulta la [guía de integración del puente Android](bridge/ANDROID_BRIDGE_V1_ES.md) para el empaquetado y las pruebas de aceptación.
 
-> **Próximamente:** un ejecutable de Windows (`.exe`) para el puente, para no tener que instalar Node.js, y la app de Android publicada, para no tener que compilarla. Mientras tanto, sigue los pasos de esta guía y compila la app desde su repositorio.
-
 > Proyecto comunitario no oficial y sin afiliación con GTBike V, Rockstar Games, Zwift ni Garmin. **No** incluye, modifica ni redistribuye `GTBikeV.dll`: añade un script independiente de ScriptHookVDotNet que se comunica con el mod que ya tienes instalado en tu PC.
+
+## Instala la app de Android
+
+Descarga el APK en tu teléfono con Android 8.0 o posterior. [Descargar APK](https://github.com/jhonarias91/gtav-riding-companion-android/releases/download/v0.6.0-p13/gtav-riding-companion.apk) · [Ver release v0.6.0-p13](https://github.com/jhonarias91/gtav-riding-companion-android/releases/tag/v0.6.0-p13)
+
+1. Abre `gtav-riding-companion.apk` desde tus descargas.
+2. Si Android te pide permiso para instalar apps de orígenes desconocidos, toca **Ajustes** y activa **Permitir desde esta fuente** para el navegador o gestor de archivos con el que abriste el APK.
+3. Vuelve al instalador y toca **Instalar**.
+
+Si quieres generar el APK, sigue la guía del repositorio Android. [Compila desde el ZIP del release](https://github.com/jhonarias91/gtav-riding-companion-android/blob/HEAD/README_ES.md#compila-desde-el-zip-del-release)
 
 ## Cómo funciona
 
@@ -39,7 +47,7 @@ GTBikeV.dll 0.8.0.4 → sensores ANT+ y Bluetooth, el rodillo y el juego
 | [GTBike V](https://www.gtbikev.com/) | Instala la versión **0.8.0.4** antes de configurar el puente. Sigue la [guía oficial de instalación de GTBike V](https://www.gtbikev.com/content/installation-guide/). El puente detecta otras versiones y deshabilita las operaciones de escritura. |
 | .NET Framework | 4.8 o posterior. El adaptador lo usa durante la ejecución y la compilación desde el código fuente usa su compilador `csc.exe` de 64 bits. Windows 11 y Windows 10 22H2 ya incluyen una versión compatible. [Versiones incluidas con Windows](https://learn.microsoft.com/es-es/dotnet/framework/install/versions-and-dependencies) |
 | Node.js | 22.2 o posterior (probado con 26.13). Selecciona el instalador de Windows x64 (`.msi`) en la [página oficial de descargas de Node.js](https://nodejs.org/es/download). |
-| Teléfono | Android 8.0 o posterior con la [app GTAV Riding Companion](https://github.com/jhonarias91/gtav-riding-companion-android), en la misma red local que el PC. El PC también puede conectarse por Ethernet. El escáner del QR de conexión requiere los servicios de Google Play. Si el teléfono carece de ellos, introduce la dirección y la huella de la clave manualmente. |
+| Teléfono | Android 8.0 o posterior con la [app GTAV Riding Companion](#instala-la-app-de-android), en la misma red local que el PC. El PC también puede conectarse por Ethernet. El escáner del QR de conexión requiere los servicios de Google Play. Si el teléfono carece de ellos, introduce la dirección y la huella de la clave manualmente. |
 
 ## Inicio rápido
 
@@ -309,7 +317,6 @@ Las pruebas automatizadas usan carpetas temporales y un adaptador simulado. Pued
 ## Próximos pasos
 
 - **Ejecutable de Windows (`.exe`) para el puente.** Un solo archivo para descargar y ejecutar, sin instalar Node.js ni usar npm.
-- **App de Android publicada.** Podrás instalar la app directamente en lugar de compilarla desde [su repositorio](https://github.com/jhonarias91/gtav-riding-companion-android).
 
 ## Créditos y fuentes
 
