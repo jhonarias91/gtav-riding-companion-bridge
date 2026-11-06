@@ -1,21 +1,24 @@
 // Starts the native Android bridge v1. HTTPS by default: with GTBIKE_BRIDGE_TLS_CERT/KEY when set, otherwise with a
 // key the bridge creates once and a certificate rebuilt on each start. --http-dev serves plain HTTP for debug builds.
 //   node bridge/start-v1.mjs [--port 8788] [--host 0.0.0.0] [--map-directory PATH] [--enable-riders] [--http-dev]
-import { join } from 'node:path';
+//     [--desktop-status-file PATH]   (used by the PC window: QR, pairing code and a loopback-only desktop token)
+//     [--mod-config PATH]            (GTBikeVConfig.ini; default DocumentsRockstar GamesGTA VModSettings)
+import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, unlink } from 'node:fs/promises';
+import { randomBytes, X509Certificate } from 'node:crypto';
 import { createBridgeV1, BRIDGE_VERSION } from './api-v1/server.mjs';
 import { TOKEN_LIFETIME_DAYS } from './api-v1/auth.mjs';
 import { loadWorldMap } from './api-v1/world.mjs';
 import { lanAddresses } from './security.mjs';
 import { keyFingerprint, loadOrCreateBridgeKey, selfSignedCertificate } from './api-v1/auto-tls.mjs';
-import { pairingUri, terminalQr } from './pairing-qr.mjs';
+import { pairingUri, terminalQr, imageQr } from './pairing-qr.mjs';
 
 const options = {};
 for (let i = 2; i < process.argv.length; i++) {
   const option = process.argv[i];
   if (option === '--enable-riders' || option === '--http-dev') options[option] = true;
-  else if (['--port', '--host', '--map-directory'].includes(option) && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')) {
+  else if (['--port', '--host', '--map-directory', '--desktop-status-file', '--mod-config'].includes(option) && process.argv[i + 1] && !process.argv[i + 1].startsWith('--')) {
     options[option] = process.argv[++i];
   } else throw Error('Usage: node bridge/start-v1.mjs [--port 8788] [--host 0.0.0.0] [--map-directory PATH] [--enable-riders] [--http-dev]');
 }
@@ -25,6 +28,16 @@ const host = options['--host'] ?? '0.0.0.0';
 if (host !== '0.0.0.0' && host !== '127.0.0.1' && !lanAddresses().includes(host)) throw Error('Use 0.0.0.0, 127.0.0.1 or one of this PC\'s private IPv4 addresses.');
 
 const base = join(process.env.LOCALAPPDATA ?? homedir(), 'GTBikeVCompanion');
+// GTBike V's own INI (P15 game options). The PC window passes the real Documents folder; otherwise use the folder the
+// adapter reported for Activities (a sibling of ModSettings), then the usual Documents location.
+async function modConfigPath() {
+  if (options['--mod-config']) return options['--mod-config'];
+  try {
+    const { activitiesPath } = JSON.parse(await readFile(join(base, 'v1', 'paths.json'), 'utf8'));
+    if (typeof activitiesPath === 'string' && activitiesPath.length > 3) return join(dirname(activitiesPath.replace(/[\\/]+$/, '')), 'ModSettings', 'GTBikeVConfig.ini');
+  } catch { /* adapter has not run yet */ }
+  return join(homedir(), 'Documents', 'Rockstar Games', 'GTA V', 'ModSettings', 'GTBikeVConfig.ini');
+}
 const world = { riders: options['--enable-riders'] === true };
 if (options['--map-directory']) {
   try {
@@ -46,11 +59,33 @@ if (env.GTBIKE_BRIDGE_TLS_CERT) {
 }
 const day = iso => iso.slice(0, 10);
 let bridge;
+const desktopStatusFile = options['--desktop-status-file'];
+// The PC window authenticates with this per-run secret. It lives only in memory and in the status file under the
+// user's own %LOCALAPPDATA%, and the bridge accepts it only from 127.0.0.1.
+const desktopToken = desktopStatusFile ? randomBytes(32).toString('base64url') : null;
+const certSha256 = () => (tls ? new X509Certificate(tls.cert).fingerprint256.replace(/:/g, '').toLowerCase() : null);
+let desktopWrite = Promise.resolve();
+const connectionUri = () => hosts.length ? pairingUri({ bridgeId: bridge.bridgeId, hosts, port,
+  fingerprint: tls ? keyFingerprint(tls.cert) : null, pairingKey: bridge.pairing.currentPairingKey() }) : null;
+const updateDesktopStatus = () => {
+  if (!desktopStatusFile || !bridge) return;
+  const uri = connectionUri();
+  const data = JSON.stringify({ bridgeId: bridge.bridgeId, hosts, port,
+    fingerprint: tls ? keyFingerprint(tls.cert) : null,
+    pin: bridge.pairing.currentPin(), pinExpiresAtUtc: new Date(bridge.pairing.pinExpiresAt).toISOString(),
+    qrDataUrl: uri ? imageQr(uri) : null, paired: bridge.pairing.activeClients(),
+    bridgeVersion: BRIDGE_VERSION, transport: tls ? 'https' : 'http', desktopToken, certSha256: certSha256() });
+  desktopWrite = desktopWrite.then(async () => {
+    await mkdir(join(desktopStatusFile, '..'), { recursive: true });
+    const temporary = `${desktopStatusFile}.${process.pid}.tmp`;
+    await writeFile(temporary, data, { mode: 0o600 });
+    await rename(temporary, desktopStatusFile);
+  }).catch(error => console.warn(`Desktop status unavailable: ${error.message}`));
+};
 // The QR has the address, port, identity, key fingerprint and a one-time pairing key: scanning it pairs the phone.
 const showQr = () => {
   if (!hosts.length) return;
-  const uri = pairingUri({ bridgeId: bridge.bridgeId, hosts, port, fingerprint: tls ? keyFingerprint(tls.cert) : null,
-    pairingKey: bridge.pairing.currentPairingKey() });
+  const uri = connectionUri();
   console.log('\nIn the app, tap Scan QR code and point the camera here:\n');
   console.log(terminalQr(uri));
 };
@@ -63,13 +98,15 @@ const onPairingExpired = ({ clientName, expiresAtUtc }) => {
   lastExpiredNotice = Date.now();
   console.log(`\n${clientName}: pairing expired on ${day(expiresAtUtc)} (pairings last ${TOKEN_LIFETIME_DAYS} days). Scan the QR again in the app.`);
   showQr();
+  updateDesktopStatus();
   hint();
 };
 const onPaired = ({ clientName, expiresAtUtc }) => {
   console.log(`\nPaired: ${clientName}  (until ${day(expiresAtUtc)}). The QR above is used up; press Enter for a new one.`);
+  updateDesktopStatus();
 };
 bridge = await createBridgeV1({ adapterDirectory: join(base, 'v1'), stateDirectory: join(base, 'bridge-v1'), world,
-  tls, onPairingExpired, onPaired });
+  tls, desktopToken, modConfig: { path: await modConfigPath() }, onPairingExpired, onPaired });
 bridge.server.on('error', e => {
   console.error(e.code === 'EADDRINUSE' ? `Port ${port} is already in use. Choose another with --port.` : e.message);
   process.exitCode = 1;
@@ -83,7 +120,14 @@ bridge.server.listen(port, host, () => {
   console.log(`Adapter data: ${join(base, 'v1')}`);
   for (const p of bridge.pairing.activeClients()) console.log(`Paired phone: ${p.clientName}  (until ${day(p.expiresAtUtc)})`);
   showQr();
+  updateDesktopStatus();
   hint();
-  process.stdin.on('data', () => { showQr(); showPin(); hint(); });
+  process.stdin.on('data', () => { showQr(); showPin(); updateDesktopStatus(); hint(); });
+  if (desktopStatusFile) setInterval(updateDesktopStatus, 30_000);
 });
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => { await bridge.close(); process.exit(0); });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
+  await bridge.close();
+  await desktopWrite;
+  if (desktopStatusFile) await unlink(desktopStatusFile).catch(() => {});
+  process.exit(0);
+});

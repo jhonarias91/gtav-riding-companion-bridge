@@ -28,7 +28,9 @@
     { "id": "riders.read", "phase": "P8b", "kind": "read", "helpId": "multiplayer.riders" },
     { "id": "multiplayer.joinBusiestRoute", "phase": "P8b", "kind": "write", "helpId": "multiplayer.join", "indirectGuard": "workout-not-finished" },
     { "id": "map.position", "phase": "P8a", "kind": "read", "helpId": "map.gameWorld" },
-    { "id": "advancedSettings.update", "phase": "P8c", "kind": "write", "helpId": "advanced.bots" }
+    { "id": "advancedSettings.update", "phase": "P8c", "kind": "write", "helpId": "advanced.bots" },
+    { "id": "modConfig.read", "phase": "P15", "kind": "read", "helpId": "modConfig.options" },
+    { "id": "modConfig.update", "phase": "P15", "kind": "write", "helpId": "modConfig.options", "note": "Requested by the user on 2026-11-06 (gtbikev.com configuration page; groups [main] and two [network] switches only). GET/POST /api/v1/mod-config, not a command: the bridge edits GTBikeVConfig.ini itself, only while GTA V is closed (GAME_RUNNING otherwise; the mod rewrites the whole file from memory on every save), with revision check and backup. Allowlist only: no [keys], [devices], [user] or URLs; multiplayer is an on/off switch (NONE / official server). config.write (arbitrary INI writes) stays forbidden." }
   ],
   "forbiddenCapabilities": [
     "erg", "erc", "target-power", "targetPower", "workouts.start", "workouts.pause",

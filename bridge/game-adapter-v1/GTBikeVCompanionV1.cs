@@ -143,11 +143,16 @@ namespace CompanionBridge.V1
             if (gameControl != "inControl") return null;
             Ped character = Game.Player.Character;
             if (character == null || !character.Exists()) return null;
-            Vector3 position = character.Position;
-            return position == Vector3.Zero ? null : MapPoint(position);
+            Entity body = character.IsInVehicle() && character.CurrentVehicle != null ? (Entity)character.CurrentVehicle : character;
+            Vector3 position = body.Position;
+            Dictionary<string, object> point = position == Vector3.Zero ? null : MapPoint(position);
+            if (point == null) return null;
+            point["z"] = position.Z; // Extra fields for the PC window map; phones only read x/y.
+            point["heading"] = body.Heading;
+            return point;
         }
 
-        private static object MapPoint(Vector3 position)
+        private static Dictionary<string, object> MapPoint(Vector3 position)
         {
             if (float.IsNaN(position.X) || float.IsInfinity(position.X) || float.IsNaN(position.Y) || float.IsInfinity(position.Y)) return null;
             return new Dictionary<string, object> { { "x", position.X }, { "y", position.Y } };

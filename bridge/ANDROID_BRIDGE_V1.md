@@ -83,6 +83,12 @@ Remote joining is disabled. `JoinMultiplayerHandler` calls `LoadCourse`, which c
 
 Bot and traffic editing are also disabled. Settings are read from the mod's cache. `BotGang.CreateBotGang` reads the definition when it creates a group, and `ChangeCarsForBikes` captures its settings when constructed. Enabling P8c requires testing how changes take effect after a reload, with a review step, a backup and a distinction between the saved value and the one in use.
 
+## P15 · Game options (GTBikeVConfig.ini)
+
+`GET /api/v1/mod-config` returns an allowlisted subset of GTBike V's configuration file ([main] gameplay keys, [network] telemetry and multiplayer on/off), with `revision`, `gameRunning` and `editable` (contract: `contracts/v1/mod-config.schema.json`). `POST /api/v1/mod-config` with `{expectedRevision, options:{...changed fields}}` writes only those lines, keeps every other line as it was and stores a backup (last 10) in `bridge-v1/mod-config-backups`. It is refused with `GAME_RUNNING` while GTA V runs (process check or a fresh adapter), `REVISION_CONFLICT` if the file changed, `INVALID_REQUEST`/`VALUE_OUT_OF_RANGE` for anything outside the allowlist. Not a command and never through the adapter; changes apply when the game starts. The bridge finds the file from `--mod-config PATH` (the PC window passes the real Documents folder), else next to the Activities folder the adapter reported, else `%USERPROFILE%DocumentsRockstar GamesGTA VModSettings`. Arbitrary INI writes (`config.write`) stay forbidden.
+
+The PC window authenticates with a per-run desktop token that only works from 127.0.0.1 and also reads `GET /api/v1/desktop/world` (raw GTA coordinates and heading for its own map).
+
 ## Diagnostics and acceptance checks
 
 - Run `Diagnose-BridgeV1.ps1` to check the port, detected version and snapshot age. Omit the PIN and token when sharing the output. A listening port shows that a process opened it. Check that `/api/v1/hello` identifies the expected bridge.

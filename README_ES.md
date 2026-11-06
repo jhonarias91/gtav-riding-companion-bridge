@@ -46,10 +46,26 @@ GTBikeV.dll 0.8.0.4 → sensores ANT+ y Bluetooth, el rodillo y el juego
 | GTA V | Probado en GTA V Enhanced con ScriptHookV y **ScriptHookVDotNet 3**. El adaptador se compiló y probó con la versión 3.9.0.0. |
 | [GTBike V](https://www.gtbikev.com/) | Instala la versión **0.8.0.4** antes de configurar el puente. Sigue la [guía oficial de instalación de GTBike V](https://www.gtbikev.com/content/installation-guide/). El puente detecta otras versiones y deshabilita las operaciones de escritura. |
 | .NET Framework | 4.8 o posterior. El adaptador lo usa durante la ejecución y la compilación desde el código fuente usa su compilador `csc.exe` de 64 bits. Windows 11 y Windows 10 22H2 ya incluyen una versión compatible. [Versiones incluidas con Windows](https://learn.microsoft.com/es-es/dotnet/framework/install/versions-and-dependencies) |
-| Node.js | 22.2 o posterior (probado con 26.13). Selecciona el instalador de Windows x64 (`.msi`) en la [página oficial de descargas de Node.js](https://nodejs.org/es/download). |
+| Node.js | Solo para ejecutar o compilar desde el código: 22.2 o posterior (probado con 26.13). El instalador `.exe` incluye su propio runtime. |
 | Teléfono | Android 8.0 o posterior con la [app GTAV Riding Companion](#instala-la-app-de-android), en la misma red local que el PC. El PC también puede conectarse por Ethernet. El escáner del QR de conexión requiere los servicios de Google Play. Si el teléfono carece de ellos, introduce la dirección y la huella de la clave manualmente. |
 
 ## Inicio rápido
+
+### Instalador para Windows (recomendado)
+
+Con GTA V cerrado, ejecuta `outputs\release\GTAVRidingCompanion-Setup.exe`. Selecciona la carpeta principal del juego, donde está `ScriptHookVDotNet3.dll`; GTBike V 0.8.0.4 ya debe estar en `scripts`. Acepta la solicitud de administrador de Windows: el instalador compila el adaptador para tu copia de ScriptHookVDotNet, guarda un respaldo si había otro, lo instala y crea una regla de firewall limitada a la red privada y la subred local para el runtime incluido. Luego aparece la ventana del puente con el QR, dirección, puerto, identidad, huella de clave, código manual y teléfonos vinculados. Escanea el QR con la app Android. El acceso directo **GTAV Riding Companion Bridge** del menú Inicio abre la ventana más adelante. Déjala abierta durante el recorrido.
+
+Para generar el instalador desde el código en Windows:
+
+```powershell
+npm ci
+npm test
+.\installer\Build-Installer.ps1
+```
+
+La compilación necesita Node.js 22.2+, el compilador de .NET Framework de 64 bits y conexión a internet para descargar la licencia de la versión de Node.js incluida. El `.exe` resultante queda en `outputs\release`. No incluye ni redistribuye GTBike V ni ScriptHookVDotNet. La ventana reserva una pestaña para configurar el mod en el futuro; esos controles aún no están implementados.
+
+### Desde el código fuente
 
 Ejecuta los comandos en PowerShell desde la carpeta del repositorio, **con GTA V cerrado**. Sustituye la ruta del juego por la de tu instalación, donde está `ScriptHookVDotNet3.dll`.
 
@@ -263,7 +279,7 @@ El instalador comprueba que GTA V esté cerrado y que `ScriptHookVDotNet3.dll` c
 
 ## Resumen de la API
 
-Todas las rutas salvo `hello` y `pair` requieren `Authorization: Bearer <token>`. El teléfono consulta `GET /api/v1/capabilities` para saber qué está disponible en cada sesión. Las funciones no disponibles incluyen un código de motivo. El valor `apiMinor` que devuelve `GET /api/v1/hello` identifica la revisión del contrato, actualmente la 10.
+Todas las rutas salvo `hello` y `pair` requieren `Authorization: Bearer <token>`. El teléfono consulta `GET /api/v1/capabilities` para saber qué está disponible en cada sesión. Las funciones no disponibles incluyen un código de motivo. El valor `apiMinor` que devuelve `GET /api/v1/hello` identifica la revisión del contrato, actualmente la 11. La app Android actualizada envía un `clientId` aleatorio y persistente al vincularse; al escanear de nuevo, el bridge reemplaza su token anterior. Las versiones anteriores usan temporalmente el nombre del modelo: dos teléfonos del mismo modelo deben actualizar la app para mantenerse vinculados por separado.
 
 | Método y ruta | Función |
 | --- | --- |
@@ -316,7 +332,7 @@ Las pruebas automatizadas usan carpetas temporales y un adaptador simulado. Pued
 
 ## Próximos pasos
 
-- **Ejecutable de Windows (`.exe`) para el puente.** Un solo archivo para descargar y ejecutar, sin instalar Node.js ni usar npm.
+- **Configuración del mod desde Windows.** Llevar a la ventana los controles de perfil, ciclismo, apariencia y sensores que ya están disponibles a través de la API del puente para Android.
 
 ## Créditos y fuentes
 

@@ -17,7 +17,7 @@ export const readJson = async p => JSON.parse(await readFile(p, 'utf8'));
 export async function schemas() {
   const ajv = new Ajv2020({ strict: true, strictTypes: false, allErrors: true });
   const ids = {};
-  for (const name of ['common', 'hello', 'capabilities', 'state', 'command', 'operation', 'error', 'routes', 'route-preview', 'settings', 'devices', 'workouts', 'activities', 'map', 'riders']) {
+  for (const name of ['common', 'hello', 'capabilities', 'state', 'command', 'operation', 'error', 'routes', 'route-preview', 'settings', 'devices', 'workouts', 'activities', 'map', 'riders', 'mod-config']) {
     const s = await readJson(join(contracts, `${name}.schema.json`));
     ajv.addSchema(s);
     ids[name] = s.$id;
@@ -83,12 +83,21 @@ export class FakeAdapter {
     this.behaviour = {}; // type -> 'ignore' | 'reject' | 'noop' | 'apply' (default apply)
   }
 
-  async write(at = new Date()) {
-    const doc = { ...this.raw, adapterInstanceId: this.instance, sequence: ++this.sequence, capturedAtUtc: at.toISOString(), sessionGeneration: this.generation };
-    await atomic(join(this.dir, 'telemetry.json'), doc);
-    await atomic(join(this.dir, 'catalog.json'), this.catalog);
-    await atomic(join(this.dir, 'workouts.json'), this.workouts);
-    await atomic(join(this.dir, 'paths.json'), { activitiesPath: join(this.dir, '..', 'Activities') });
+  /**
+   * Writes are queued and each snapshot is built when its turn comes, like the real adapter writing from one game Tick.
+   * Without the queue the background tick and a test could rename their files out of order, so an older snapshot
+   * (taken before the test changed raw) replaced a newer one and the bridge briefly saw the old state.
+   */
+  write(at = null) {
+    const run = async () => {
+      const doc = { ...this.raw, adapterInstanceId: this.instance, sequence: ++this.sequence, capturedAtUtc: (at ?? new Date()).toISOString(), sessionGeneration: this.generation };
+      await atomic(join(this.dir, 'telemetry.json'), doc);
+      await atomic(join(this.dir, 'catalog.json'), this.catalog);
+      await atomic(join(this.dir, 'workouts.json'), this.workouts);
+      await atomic(join(this.dir, 'paths.json'), { activitiesPath: join(this.dir, '..', 'Activities') });
+    };
+    this.writes = (this.writes ?? Promise.resolve()).then(run, run);
+    return this.writes;
   }
 
   /** Mirrors DeviceInfo.ChangeDeviceConfig for one role. */
@@ -199,11 +208,11 @@ export async function atomic(path, value) {
   }
 }
 
-export async function setup(t) {
+export async function setup(t, { desktopToken = null, modConfig = {} } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'gtbv-v1-'));
   const adapter = new FakeAdapter(join(dir, 'v1'));
   await adapter.write();
-  const bridge = await createBridgeV1({ adapterDirectory: join(dir, 'v1'), stateDirectory: join(dir, 'bridge-v1'), pin: '246810' });
+  const bridge = await createBridgeV1({ adapterDirectory: join(dir, 'v1'), stateDirectory: join(dir, 'bridge-v1'), pin: '246810', desktopToken, modConfig });
   await new Promise(r => bridge.server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${bridge.server.address().port}`;
   // Adapter loop: one Tick every 50 ms while the test runs.

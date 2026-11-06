@@ -37,3 +37,11 @@ export function terminalQr(text) {
   }
   return lines.join('\n');
 }
+
+/** Image data URL for the local Windows connection view. Keep the normal QR quiet zone. */
+export function imageQr(text) {
+  const qr = qrcode(0, 'M');
+  qr.addData(text, 'Byte');
+  qr.make();
+  return qr.createDataURL(5, 4);
+}

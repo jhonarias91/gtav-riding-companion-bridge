@@ -47,7 +47,9 @@
         "riders.read",
         "multiplayer.joinBusiestRoute",
         "map.position",
-        "advancedSettings.update"
+        "advancedSettings.update",
+        "modConfig.read",
+        "modConfig.update"
       ]
     },
     "capability": {

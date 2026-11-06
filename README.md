@@ -46,10 +46,35 @@ GTBikeV.dll 0.8.0.4 → ANT+ / Bluetooth sensors, the trainer and the game
 | GTA V | Tested on GTA V Enhanced, with ScriptHookV and **ScriptHookVDotNet 3** (built and tested against 3.9.0.0) |
 | [GTBike V](https://www.gtbikev.com/) | **0.8.0.4** must be installed before setting up the bridge. Follow the [official GTBike V installation guide](https://www.gtbikev.com/content/installation-guide/). Other versions are detected and all writes are disabled. |
 | .NET Framework | 4.8 or later. The adapter uses it at runtime, and building from source uses its 64-bit `csc.exe` compiler. Windows 11 and Windows 10 22H2 already include a compatible version. [Versions included with Windows](https://learn.microsoft.com/en-us/dotnet/framework/install/versions-and-dependencies) |
-| Node.js | 22.2 or later (tested on 26.13). Select the Windows x64 installer (`.msi`) on the [official Node.js download page](https://nodejs.org/en/download). |
+| Node.js | Only needed when running or building from source: 22.2 or later (tested on 26.13). The `.exe` installer carries its own runtime. |
 | Phone | Android 8.0+ with the [GTAV Riding Companion app](#install-the-android-app), on the same local network as the PC (Ethernet on the PC is fine). Scanning the connection QR uses Google Play services; without them, type the address and key fingerprint by hand. |
 
 ## Quick start
+
+### Windows installer (recommended)
+
+With GTA V closed, run `outputs\release\GTAVRidingCompanion-Setup.exe`. The **Setup** tab finds the GTA V folder by itself (Steam, Rockstar launcher or Epic; use **Browse…** otherwise) and checks ScriptHookVDotNet3, GTBike V 0.8.0.4 and that the game is closed. Press **Install** and accept the Windows administrator prompt: the installer compiles the adapter against your ScriptHookVDotNet copy, installs it (keeping the three newest backups) and creates a Private/local-subnet firewall rule for the bundled runtime. The installed copy then opens by itself. It adds Start menu and optional desktop shortcuts **GTAV Riding Companion**, and an entry in Windows **Apps & features** for uninstalling. Running a newer setup offers **Update**, and **Uninstall…** removes the adapter, the firewall rule, the shortcuts and the app files but keeps your pairings and rides.
+
+The window has these tabs:
+
+- **Phone**: QR code, manual pairing code, address, bridge identity, key fingerprint and paired phones. Keep the window open while riding.
+- **Mod**: activate/deactivate GTBike V, rider profile, ride settings, bicycle and character (the same options as the Android app), and a live map showing where you are and the loaded route. Scroll to zoom, drag to move, double-click to zoom in, right-click to copy coordinates. The map image is not shipped in the installer: the first time, press **Download map (15 MB)**; it is saved in `%LOCALAPPDATA%GTBikeVCompanionmap` and checked against the calibration in `installeresourcesgta-map.calibration.json` (size and dimensions) before use.
+- **Routes**: search the course catalog, see details, choose loop/reverse, **Apply route**, **Free ride**, or **Show in game** (opens GTBike V's route selector on that route). The same warnings as the phone, including restarting a running workout.
+- **Training**: workout plans and workouts with their power profile, the workout running in the game, and **Select and start**. Pausing, skipping, ending and ERG stay in the game.
+- **Sensors**: which device GTBike V uses for each function and its rule (Auto, Lock, Skip), and disconnecting a Bluetooth sensor. Finding a new Bluetooth sensor stays in the phone app.
+- **Activities**: saved rides with their summary and power chart, **Show file in folder**, and **Save current activity**.
+- **Game options**: the gtbikev.com configuration options this app manages (traffic, cheering crowds, route bots, self-defence, key steering sensitivity, waypoints, screenshots, menu, clock, debug panels, log level, GPS origin, telemetry and multiplayer on/off). They are written to GTBike V's `GTBikeVConfig.ini` only while GTA V is closed (GTBike V rewrites that file while it runs), with a backup in `%LOCALAPPDATA%GTBikeVCompanionridge-v1mod-config-backups`, and apply the next time the game starts. Key bindings, device ids and server URLs are not exposed. The Android app has the same screen under **More → Game options**.
+- **Setup**: install, update, repair, uninstall, and open the app folder or the game adapter log.
+
+To build the installer from source on Windows, double-click `build-installer.cmd` or run:
+
+```powershell
+npm run build:installer
+```
+
+This one step installs the dependencies when needed (`npm ci`), runs the tests, bundles the bridge and compiles `outputs\release\GTAVRidingCompanion-Setup.exe` (plus a `.sha256.txt`). Options: `.\build-installer.cmd -SkipTests` for faster rebuilds and `-Clean` to reinstall `node_modules`. It needs Node.js 22.2+ and the 64-bit .NET Framework 4.8 compiler. The first build per Node.js version downloads that version's license and caches it in `outputs\cache`; later builds work offline. The executable does not contain or redistribute GTBike V or ScriptHookVDotNet.
+
+### From source
 
 Run these in PowerShell from the repository folder, **with GTA V closed**. Replace the GTA path with your own installation folder (the one that contains `ScriptHookVDotNet3.dll`).
 
@@ -261,7 +286,7 @@ The installer refuses to run if GTA V is open or if `ScriptHookVDotNet3.dll` dif
 
 ## API overview
 
-All routes except `hello` and `pair` require `Authorization: Bearer <token>`. The phone discovers what is available in each session from `GET /api/v1/capabilities`. Every unavailable capability carries a reason code, and `apiMinor` in `GET /api/v1/hello` identifies the contract revision (currently 10).
+All routes except `hello` and `pair` require `Authorization: Bearer <token>`. The phone discovers what is available in each session from `GET /api/v1/capabilities`. Every unavailable capability carries a reason code, and `apiMinor` in `GET /api/v1/hello` identifies the contract revision (currently 11). A phone with the updated Android app sends a random persistent `clientId` while pairing; scanning again replaces its prior token. Older apps use their model name as a temporary fallback, so two phones of the same model should update the app to remain paired independently.
 
 | Method and path | Purpose |
 | --- | --- |
@@ -314,7 +339,7 @@ Tests use temporary folders and a simulated adapter. They do not need GTA V. Beh
 
 ## Roadmap
 
-- **Windows executable (`.exe`) for the bridge.** One file to download and run, without installing Node.js or using npm.
+- **Desktop mod settings.** Bring the profile, ride, appearance and sensor controls already available through the Android bridge API into the Windows window.
 
 ## Credits and sources
 

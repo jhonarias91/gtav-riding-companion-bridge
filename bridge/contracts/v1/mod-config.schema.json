@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/mod-config.schema.json",
+  "title": "GET/POST /api/v1/mod-config",
+  "description": "P15. Allowlisted GTBikeVConfig.ini options ([main] gameplay keys, [network] telemetry and multiplayer on/off). The bridge edits the file only while GTA V is closed; changes apply when the game starts. Never keys, device ids, user values or URLs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["available", "reasonCode", "revision", "gameRunning", "editable", "options", "defaults", "applyMode"],
+  "properties": {
+    "available": { "type": "boolean", "description": "false when GTBikeVConfig.ini was not found (start GTA V with GTBike V once)." },
+    "reasonCode": { "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }] },
+    "revision": { "anyOf": [{ "type": "string", "pattern": "^modcfg-[a-f0-9]{24}$" }, { "type": "null" }] },
+    "gameRunning": { "type": "boolean" },
+    "editable": { "type": "boolean" },
+    "applyMode": { "const": "nextGameStart" },
+    "saved": { "type": "array", "items": { "$ref": "#/$defs/optionName" }, "description": "POST only: the options written." },
+    "options": { "anyOf": [{ "$ref": "#/$defs/options" }, { "type": "null" }], "description": "null values: line missing or unreadable; the mod uses its default." },
+    "defaults": { "$ref": "#/$defs/options" }
+  },
+  "$defs": {
+    "optionName": {
+      "enum": ["trafficBikesPercent", "trafficStyle", "crowdsEnabled", "crowdsSlopePercent", "crowdsAmount", "bots", "defensiveLevel", "waypointColor", "waypointRadius", "fineSteering", "screenshotIntervalKm", "screenshotXOffset", "menuAutoOpen", "showClock", "debugWindow", "logLevel", "gpsOriginLat", "gpsOriginLon", "telemetry", "multiplayer"]
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trafficBikesPercent", "trafficStyle", "crowdsEnabled", "crowdsSlopePercent", "crowdsAmount", "bots", "defensiveLevel", "waypointColor", "waypointRadius", "fineSteering", "screenshotIntervalKm", "screenshotXOffset", "menuAutoOpen", "showClock", "debugWindow", "logLevel", "gpsOriginLat", "gpsOriginLon", "telemetry", "multiplayer"],
+      "properties": {
+        "trafficBikesPercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100, "description": "ChangeCarsForBikes percentage: share of traffic replaced by cyclists." },
+        "trafficStyle": { "anyOf": [{ "enum": ["NORMAL", "AGRESSIVE", "BREAKLAWS"] }, { "type": "null" }], "description": "Riding style of traffic cyclists, spelled as GTBike V parses it." },
+        "crowdsEnabled": { "type": ["boolean", "null"] },
+        "crowdsSlopePercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 20 },
+        "crowdsAmount": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "bots": { "anyOf": [{ "type": "array", "maxItems": 5, "items": { "enum": [0, 1, 2, 3, 4] } }, { "type": "null" }], "description": "BotDefinition: 0 random, 1 companion, 2 climber, 3 sprinter, 4 time trialer." },
+        "defensiveLevel": { "anyOf": [{ "enum": [0, 1, 2] }, { "type": "null" }] },
+        "waypointColor": { "anyOf": [{ "type": "string", "pattern": "^[0-9A-F]{8}$" }, { "type": "null" }], "description": "AARRGGBB." },
+        "waypointRadius": { "type": ["integer", "null"], "minimum": 0, "maximum": 40 },
+        "fineSteering": { "type": ["number", "null"], "minimum": 0.1, "maximum": 1 },
+        "screenshotIntervalKm": { "type": ["integer", "null"], "minimum": 1, "maximum": 100 },
+        "screenshotXOffset": { "type": ["integer", "null"], "minimum": -20000, "maximum": 20000 },
+        "menuAutoOpen": { "type": ["boolean", "null"] },
+        "showClock": { "type": ["boolean", "null"] },
+        "debugWindow": { "type": ["boolean", "null"] },
+        "logLevel": { "type": ["integer", "null"], "minimum": 0, "maximum": 5 },
+        "gpsOriginLat": { "type": ["number", "null"], "minimum": -90, "maximum": 90 },
+        "gpsOriginLon": { "type": ["number", "null"], "minimum": -180, "maximum": 180 },
+        "telemetry": { "type": ["boolean", "null"] },
+        "multiplayer": { "type": ["boolean", "null"], "description": "false = MultiplayerServerURL NONE. The address itself is never exposed." }
+      }
+    }
+  }
+}

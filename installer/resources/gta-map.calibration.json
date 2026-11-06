@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "image": "gta-map.jpg",
+  "width": 5944,
+  "height": 8075,
+  "worldToPixel": {
+    "scaleX": 0.66304,
+    "offsetX": 2629.6,
+    "scaleY": -0.656,
+    "offsetY": 5471.1
+  },
+  "note": "px = scaleX * worldX + offsetX, py = scaleY * worldY + offsetY. Checked on 2026-11-06 by drawing the public GTBikeV courses 28 (Foothills) and 34 (Tracks, Terminals & Tarmac) from github.com/gtbikev/courses over the image: they follow the roads.",
+  "imageUrl": "https://i.redd.it/8qfr3xqfbw671.jpg",
+  "imageBytes": 15094127,
+  "note2": "The image is not shipped in the installer: the Mod tab downloads it from imageUrl on request and checks its size and dimensions before using it."
+}

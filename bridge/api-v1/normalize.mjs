@@ -190,6 +190,9 @@ const CATALOG = [
   ['devices.assign', 'devices.phoneScan', 'async'],
   ['devices.disconnect', 'devices.phoneScan', 'async'],
   ['workouts.select', 'training.select', 'async'],
+  // P15: allowlisted GTBikeVConfig.ini options, edited only with GTA V closed; they apply when the game starts.
+  ['modConfig.read', 'modConfig.options', null],
+  ['modConfig.update', 'modConfig.options', 'scriptReload'],
 ];
 
 /** GET /api/v1/capabilities. */

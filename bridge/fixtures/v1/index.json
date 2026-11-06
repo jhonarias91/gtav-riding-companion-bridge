@@ -396,6 +396,17 @@
       "why": "workouts.select must quote the workout catalog revision the phone browsed"
     },
     {
+      "file": "valid/mod_config.json",
+      "schema": "mod-config",
+      "valid": true
+    },
+    {
+      "file": "invalid/mod_config_server_url.json",
+      "schema": "mod-config",
+      "valid": false,
+      "why": "Server addresses are never exposed through game options"
+    },
+    {
       "file": "valid/command_workouts_select.json",
       "schema": "command",
       "valid": true

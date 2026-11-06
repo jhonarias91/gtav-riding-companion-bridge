@@ -1,0 +1,62 @@
+{
+  "available": true,
+  "reasonCode": null,
+  "revision": "modcfg-0123456789abcdef01234567",
+  "gameRunning": false,
+  "editable": true,
+  "applyMode": "nextGameStart",
+  "options": {
+    "trafficBikesPercent": 50,
+    "trafficStyle": "NORMAL",
+    "crowdsEnabled": true,
+    "crowdsSlopePercent": 6,
+    "crowdsAmount": 50,
+    "bots": [
+      2,
+      4,
+      0,
+      0,
+      3
+    ],
+    "defensiveLevel": 1,
+    "waypointColor": "FFADFF2F",
+    "waypointRadius": 20,
+    "fineSteering": 0.7,
+    "screenshotIntervalKm": 5,
+    "screenshotXOffset": 0,
+    "menuAutoOpen": true,
+    "showClock": true,
+    "debugWindow": false,
+    "logLevel": 3,
+    "gpsOriginLat": -19.10637,
+    "gpsOriginLon": -169.871,
+    "telemetry": true,
+    "multiplayer": true
+  },
+  "defaults": {
+    "trafficBikesPercent": 50,
+    "trafficStyle": "NORMAL",
+    "crowdsEnabled": true,
+    "crowdsSlopePercent": 6,
+    "crowdsAmount": 50,
+    "bots": [
+      1,
+      0,
+      0
+    ],
+    "defensiveLevel": 1,
+    "waypointColor": "FFADFF2F",
+    "waypointRadius": 20,
+    "fineSteering": 0.7,
+    "screenshotIntervalKm": 5,
+    "screenshotXOffset": 0,
+    "menuAutoOpen": true,
+    "showClock": true,
+    "debugWindow": false,
+    "logLevel": 3,
+    "gpsOriginLat": -19.10637,
+    "gpsOriginLon": -169.871,
+    "telemetry": true,
+    "multiplayer": true
+  }
+}

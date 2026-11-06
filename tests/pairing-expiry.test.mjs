@@ -2,9 +2,10 @@
 // never authorizes anything again, but the bridge still recognises it so the console can show a new code.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { NativePairing, TOKEN_LIFETIME_DAYS } from '../bridge/api-v1/auth.mjs';
 import { createBridgeV1 } from '../bridge/api-v1/server.mjs';
 
@@ -67,6 +68,67 @@ test('scanning the QR pairs with its one-time key; the key and the PIN both chan
   assert.notEqual(bridge.pairing.currentPin(), pin);
   const reused = await pair({ pairingKey: key, clientName: 'Other phone' });
   assert.equal((await reused.json()).error.code, 'PAIRING_PIN_INVALID', 'a used QR no longer pairs');
+});
+
+test('re-pairing the same client ID replaces its token, while another phone of the same model stays paired', async t => {
+  const dir = await tempDir(t);
+  const bridge = await createBridgeV1({ adapterDirectory: join(dir, 'v1'), stateDirectory: join(dir, 'bridge-v1') });
+  await new Promise(r => bridge.server.listen(0, '127.0.0.1', r));
+  t.after(() => bridge.close());
+  const base = `http://127.0.0.1:${bridge.server.address().port}`;
+  const scan = async (clientId, clientName = 'Pixel 8') => {
+    const res = await fetch(`${base}/api/v1/pair`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pairingKey: bridge.pairing.currentPairingKey(), clientName, clientId }) });
+    assert.equal(res.status, 200);
+    return (await res.json()).token;
+  };
+  const id1 = '1'.repeat(32);
+  const id2 = '2'.repeat(32);
+  const first = await scan(id1);
+  const other = await scan(id2);
+  assert.equal(bridge.pairing.activeClients().length, 2);
+  const replacement = await scan(id1, 'Renamed Pixel');
+  assert.equal(bridge.pairing.activeClients().length, 2);
+  assert.equal(bridge.pairing.verify(`Bearer ${first}`), null, 'old token is revoked');
+  assert.ok(bridge.pairing.verify(`Bearer ${other}`), 'other phone of the same model stays paired');
+  assert.ok(bridge.pairing.verify(`Bearer ${replacement}`));
+  const invalid = await fetch(`${base}/api/v1/pair`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pairingKey: bridge.pairing.currentPairingKey(), clientName: 'Pixel 8', clientId: 'short' }) });
+  assert.equal(invalid.status, 422);
+  const restarted = new NativePairing({ stateDirectory: join(dir, 'bridge-v1') });
+  await restarted.load();
+  assert.equal(restarted.activeClients().length, 2, 'IDs survive a restart');
+});
+
+test('legacy model-only duplicates collapse, and a new identified pairing replaces their last token', async t => {
+  const dir = await tempDir(t);
+  const base = Date.UTC(2026, 10, 5);
+  const tokens = ['a', 'b', 'c'].map((value, index) => ({
+    hash: createHash('sha256').update(value.repeat(43)).digest('hex'),
+    clientName: 'SM-S908E', expiresAt: base + (index + 1) * DAY,
+  }));
+  await writeFile(join(dir, 'tokens.json'), JSON.stringify({ tokens }));
+  const pairing = new NativePairing({ stateDirectory: dir, now: () => base, pin: '135790' });
+  await pairing.load();
+  assert.equal(pairing.activeClients().length, 1);
+  assert.equal(pairing.verify(`Bearer ${'a'.repeat(43)}`), null);
+  assert.ok(pairing.verify(`Bearer ${'c'.repeat(43)}`), 'the most recent legacy token survives migration');
+  const newPair = await pairing.pair('192.168.1.20', '135790', 'SM-S908E', null, 'd'.repeat(32));
+  assert.equal(pairing.activeClients().length, 1);
+  assert.equal(pairing.verify(`Bearer ${'c'.repeat(43)}`), null);
+  assert.ok(pairing.verify(`Bearer ${newPair.token}`));
+});
+
+test('repeated QR scans from an older app do not increase the phone count', async t => {
+  const dir = await tempDir(t);
+  const pairing = new NativePairing({ stateDirectory: dir });
+  for (let scan = 0; scan < 8; scan++) {
+    const previous = pairing.activeClients().length;
+    const token = await pairing.pair('192.168.1.20', null, 'SM-S908E', pairing.currentPairingKey());
+    assert.ok(token.token);
+    assert.equal(pairing.activeClients().length, 1);
+    if (scan > 0) assert.equal(previous, 1);
+  }
 });
 
 test('the bridge answers AUTH_REQUIRED for an expired token and tells the console which phone it was', async t => {

@@ -19,6 +19,7 @@ const PER_IP = 5;
 const GLOBAL = 20;
 const MAX_TOKENS = 16;
 const MAX_EXPIRED = 16;
+const CLIENT_ID = /^[a-f0-9]{32}$/;
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const sameSecret = (a, b) => {
@@ -32,7 +33,7 @@ export class NativePairing {
     this.file = stateDirectory ? join(stateDirectory, 'tokens.json') : null;
     this.now = now;
     this.fixedPin = pin; // Tests only.
-    this.tokens = new Map(); // hash -> { clientName, expiresAt }
+    this.tokens = new Map(); // hash -> { clientName, clientId, expiresAt }
     this.attempts = new Map(); // ip -> { count, at }
     this.global = { count: 0, at: 0 };
     this.rotatePin();
@@ -45,11 +46,28 @@ export class NativePairing {
       const saved = JSON.parse(await readFile(this.file, 'utf8'));
       for (const t of saved.tokens ?? []) {
         if (typeof t.hash === 'string' && /^[a-f0-9]{64}$/.test(t.hash) && Number.isFinite(t.expiresAt)) {
-          this.tokens.set(t.hash, { clientName: String(t.clientName ?? '').slice(0, 40), expiresAt: t.expiresAt });
+          this.tokens.set(t.hash, { clientName: String(t.clientName ?? '').slice(0, 40),
+            clientId: CLIENT_ID.test(t.clientId) ? t.clientId : null, expiresAt: t.expiresAt });
         }
       }
     } catch { /* No saved tokens: phones pair again. */ }
+    // Older Android builds sent only Build.MODEL. Keep their newest token per model on migration.
+    // Two phones of the same model need the new clientId-capable app to coexist independently.
+    const newestLegacy = new Map();
+    for (const [hash, entry] of this.tokens) {
+      if (entry.clientId) continue;
+      const newest = newestLegacy.get(entry.clientName);
+      if (!newest || entry.expiresAt >= newest.expiresAt) newestLegacy.set(entry.clientName, { hash, expiresAt: entry.expiresAt });
+    }
+    let migrated = false;
+    for (const [hash, entry] of this.tokens) {
+      if (!entry.clientId && newestLegacy.get(entry.clientName)?.hash !== hash) {
+        this.tokens.delete(hash);
+        migrated = true;
+      }
+    }
     this.prune();
+    if (migrated) await this.persist();
   }
 
   /** Drops expired hashes past their retention, and the oldest ones beyond MAX_EXPIRED. */
@@ -92,7 +110,8 @@ export class NativePairing {
    * Pairs with the six-digit PIN, or with the QR pairing key when [pairingKey] is given.
    * Returns { token, expiresAtUtc } or { error, status, retryAfterS }.
    */
-  async pair(ip, pin, clientName, pairingKey = null) {
+  async pair(ip, pin, clientName, pairingKey = null, clientId = null) {
+    if (clientId !== null && (typeof clientId !== 'string' || !CLIENT_ID.test(clientId))) return { error: 'INVALID_REQUEST', status: 422 };
     const now = this.now();
     if (now - this.global.at > WINDOW_MS) this.global = { count: 0, at: now };
     const entry = this.attempts.get(ip);
@@ -119,11 +138,18 @@ export class NativePairing {
     this.rotatePin(); // One code, one phone: the PIN and the QR key both change after any pairing.
     this.rotatePairingKey();
     this.prune();
+    const name = String(clientName ?? 'Android').slice(0, 40);
+    // A new pairing replaces its own credential. Legacy pairings have no real device ID;
+    // match those by the model name until the Android app starts sending a stable random ID.
+    for (const [hash, entry] of this.tokens) {
+      if (clientId ? entry.clientId === clientId || (!entry.clientId && entry.clientName === name)
+        : !entry.clientId && entry.clientName === name) this.tokens.delete(hash);
+    }
     const active = [...this.tokens].filter(([, v]) => v.expiresAt > now);
     if (active.length >= MAX_TOKENS) this.tokens.delete(active.sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0][0]);
     const token = randomBytes(32).toString('base64url');
     const expiresAt = now + TOKEN_LIFETIME_MS;
-    this.tokens.set(sha256(token), { clientName: String(clientName ?? 'Android').slice(0, 40), expiresAt });
+    this.tokens.set(sha256(token), { clientName: name, clientId, expiresAt });
     await this.persist();
     return { token, expiresAtUtc: new Date(expiresAt).toISOString() };
   }

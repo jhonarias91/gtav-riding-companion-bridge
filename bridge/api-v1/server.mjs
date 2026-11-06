@@ -2,7 +2,7 @@
 // tokens, no Origin-based browser flow and no route to /api/* legacy commands or INI writes.
 import http from 'node:http';
 import https from 'node:https';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NativePairing } from './auth.mjs';
@@ -12,18 +12,19 @@ import { validateCommand, CommandError, ROLE_SENSOR_TYPES } from './validate.mjs
 import { toState, toCapabilities, capabilityReasons, toRoutesPage, toRouteDetail, toPreview, toSettings, toDevices, toWorkoutPlans, toWorkoutList, toWorkoutDetail, toWorkoutProgress } from './normalize.mjs';
 import { ActivityLibrary } from './activities.mjs';
 import { toMap, toRiders, worldReasons } from './world.mjs';
+import { ModConfigStore, ModConfigError, gtaRunning } from './mod-config.mjs';
 
-export const API_MINOR = 10; // 7: P11 phone-chosen BLE devices, 8: pinned HTTPS, 9: P12 device names and devices.disconnect, 10: P13 workouts.select.
-export const BRIDGE_VERSION = '0.5.0-dev';
+export const API_MINOR = 11; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID.
+export const BRIDGE_VERSION = '0.5.1-dev';
 const MAX_BODY = 64 * 1024;
-const SERVER_CODES = new Set(['INVALID_REQUEST', 'PAYLOAD_TOO_LARGE', 'AUTH_REQUIRED', 'FORBIDDEN_SCOPE', 'PAIRING_PIN_INVALID', 'PAIRING_PIN_EXPIRED', 'RATE_LIMITED', 'NOT_FOUND', 'ADAPTER_ABSENT', 'ADAPTER_STALE', 'UNSUPPORTED_VERSION', 'CAPABILITY_UNAVAILABLE', 'REVISION_CONFLICT', 'INSTANCE_CHANGED', 'MOD_TRANSITION_IN_PROGRESS', 'GAME_NOT_IN_CONTROL', 'DEVICE_CHANGED', 'WORKOUT_PC_CONTROL_REQUIRED', 'SAVE_TOO_SHORT', 'OPERATION_UNKNOWN', 'FIT_INVALID', 'ASSET_UNAVAILABLE', 'MOD_INACTIVE', 'MOD_NOT_LOADED', 'PANEL_CLOSED', 'RIDER_MOVING', 'AUTOPILOT_ON', 'VALUE_OUT_OF_RANGE', 'VALUE_NOT_ALLOWED', 'BRIDGE_BUSY', 'INTERNAL']);
+const SERVER_CODES = new Set(['INVALID_REQUEST', 'PAYLOAD_TOO_LARGE', 'AUTH_REQUIRED', 'FORBIDDEN_SCOPE', 'PAIRING_PIN_INVALID', 'PAIRING_PIN_EXPIRED', 'RATE_LIMITED', 'NOT_FOUND', 'ADAPTER_ABSENT', 'ADAPTER_STALE', 'UNSUPPORTED_VERSION', 'CAPABILITY_UNAVAILABLE', 'REVISION_CONFLICT', 'INSTANCE_CHANGED', 'MOD_TRANSITION_IN_PROGRESS', 'GAME_NOT_IN_CONTROL', 'DEVICE_CHANGED', 'WORKOUT_PC_CONTROL_REQUIRED', 'SAVE_TOO_SHORT', 'OPERATION_UNKNOWN', 'FIT_INVALID', 'ASSET_UNAVAILABLE', 'MOD_INACTIVE', 'MOD_NOT_LOADED', 'PANEL_CLOSED', 'RIDER_MOVING', 'AUTOPILOT_ON', 'VALUE_OUT_OF_RANGE', 'VALUE_NOT_ALLOWED', 'BRIDGE_BUSY', 'GAME_RUNNING', 'INTERNAL']);
 const STATUS = {
   ADAPTER_ABSENT: 503, ADAPTER_STALE: 503, GAME_NOT_IN_CONTROL: 503, MOD_INACTIVE: 503, MOD_NOT_LOADED: 503,
   UNSUPPORTED_VERSION: 501, CAPABILITY_UNAVAILABLE: 501, PHASE_NOT_AVAILABLE: 501,
   VALUE_OUT_OF_RANGE: 422, VALUE_NOT_ALLOWED: 422, INVALID_REQUEST: 422, NOT_FOUND: 404, FIT_INVALID: 422,
 };
 const RETRYABLE = new Set(['ADAPTER_STALE', 'GAME_NOT_IN_CONTROL', 'BRIDGE_BUSY', 'RATE_LIMITED', 'MOD_TRANSITION_IN_PROGRESS', 'PANEL_CLOSED', 'RIDER_MOVING']);
-const HELP = { WORKOUT_PC_CONTROL_REQUIRED: 'routes.apply', ADAPTER_STALE: 'connection.stale', UNSUPPORTED_VERSION: 'connection.compatibility', AUTH_REQUIRED: 'connection.pairing', PAIRING_PIN_INVALID: 'connection.pairing', PAIRING_PIN_EXPIRED: 'connection.pairing', MOD_TRANSITION_IN_PROGRESS: 'mod.activate', AUTOPILOT_ON: 'ride.obstacles', RIDER_MOVING: 'appearance.bike', PANEL_CLOSED: 'routes.pcPreview', DEVICE_CHANGED: 'devices.lock', SAVE_TOO_SHORT: 'activity.save', FIT_INVALID: 'activity.download' };
+const HELP = { WORKOUT_PC_CONTROL_REQUIRED: 'routes.apply', ADAPTER_STALE: 'connection.stale', UNSUPPORTED_VERSION: 'connection.compatibility', AUTH_REQUIRED: 'connection.pairing', PAIRING_PIN_INVALID: 'connection.pairing', PAIRING_PIN_EXPIRED: 'connection.pairing', MOD_TRANSITION_IN_PROGRESS: 'mod.activate', AUTOPILOT_ON: 'ride.obstacles', RIDER_MOVING: 'appearance.bike', PANEL_CLOSED: 'routes.pcPreview', DEVICE_CHANGED: 'devices.lock', SAVE_TOO_SHORT: 'activity.save', FIT_INVALID: 'activity.download', GAME_RUNNING: 'modConfig.options' };
 
 const safeCode = code => (SERVER_CODES.has(code) ? code : code === 'PHASE_NOT_AVAILABLE' ? 'CAPABILITY_UNAVAILABLE' : 'INTERNAL');
 const errorEnvelope = (code, { operationId = null, details = {} } = {}) => {
@@ -33,6 +34,29 @@ const errorEnvelope = (code, { operationId = null, details = {} } = {}) => {
 
 /** Only IP literals and localhost: a browser page reached through DNS rebinding carries its own host name. */
 const allowedHost = host => /^(localhost|127\.0\.0\.1|\[::1\]|(\d{1,3}\.){3}\d{1,3})(:\d{1,5})?$/.test(host ?? '');
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const sameText = (a, b) => {
+  const x = Buffer.from(String(a ?? ''));
+  const y = Buffer.from(String(b ?? ''));
+  return x.length === y.length && timingSafeEqual(x, y);
+};
+const worldPoint = p => Number.isFinite(p?.x) && Number.isFinite(p?.y) && Math.abs(p.x) <= 100_000 && Math.abs(p.y) <= 100_000;
+const finiteOrNull = v => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
+
+/** GET /api/v1/desktop/world: raw GTA world coordinates for the PC window's own map (it projects them itself). */
+function toDesktopWorld(docs) {
+  const raw = docs.snap?.fresh ? docs.snap.raw : null;
+  const map = raw?.p8Map;
+  const position = worldPoint(map?.position)
+    ? { x: finiteOrNull(map.position.x), y: finiteOrNull(map.position.y), z: finiteOrNull(map.position.z), heading: finiteOrNull(map.position.heading) }
+    : null;
+  const waypoints = Array.isArray(map?.route?.waypoints) ? map.route.waypoints.slice(0, 512).filter(worldPoint).map(p => ({ x: finiteOrNull(p.x), y: finiteOrNull(p.y) })) : [];
+  return {
+    adapter: docs.state.layers.adapter, mod: docs.state.layers.mod, gameControl: docs.state.layers.gameControl,
+    sequence: raw?.sequence ?? null, activeRoute: docs.state.activeRoute, position,
+    route: waypoints.length ? { reverse: ((map.route.courseKey ?? 0) & 0x8000) !== 0, waypoints } : null,
+  };
+}
 
 async function loadBridgeId(stateDirectory) {
   const file = join(stateDirectory, 'bridge.json');
@@ -46,14 +70,23 @@ async function loadBridgeId(stateDirectory) {
   return bridgeId;
 }
 
-export async function createBridgeV1({ adapterDirectory, stateDirectory, world, tls,
+/**
+ * desktopToken: secret of the PC window (handed over in its status file under %LOCALAPPDATA%). Accepted only from
+ * loopback, never stored, and the only credential that may read /api/v1/desktop/*. Otherwise it can do what a phone can.
+ */
+export async function createBridgeV1({ adapterDirectory, stateDirectory, world, tls, desktopToken = null, modConfig = {},
   now = () => Date.now(), monotonic = () => performance.now(), pin = null, onPairingExpired = null, onPaired = null }) {
+  if (desktopToken !== null && (typeof desktopToken !== 'string' || desktopToken.length < 32)) throw new Error('Desktop token too short');
+  const isDesktop = req => desktopToken !== null && LOOPBACK.has(req.socket.remoteAddress) && sameText(req.headers.authorization, `Bearer ${desktopToken}`);
   const bridgeId = await loadBridgeId(stateDirectory);
   const pairing = new NativePairing({ stateDirectory, now, pin });
   await pairing.load();
   const link = new AdapterLink({ directory: adapterDirectory, now, monotonic });
   const operations = new OperationStore({ now, monotonic });
   const library = new ActivityLibrary({ adapterDirectory });
+  // P15: GTA V counts as running when its process exists or the adapter still reports fresh data.
+  const gameConfig = new ModConfigStore({ path: modConfig.path ?? null, backupDirectory: join(stateDirectory, 'mod-config-backups'),
+    isGameRunning: modConfig.isGameRunning ?? (async () => (await link.snapshot())?.fresh === true || await gtaRunning()) });
   let lastFreshState = null;
   let busy = false;
 
@@ -224,16 +257,21 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
         let body;
         try { body = await readBody(req); } catch (e) { return fail(res, e.code ?? 'INVALID_REQUEST', e.status ?? 400); }
         // Either {pin, clientName} (typed code) or {pairingKey, clientName} (scanned QR), never both.
-        if (!body || typeof body !== 'object' || Object.keys(body).some(k => !['pin', 'pairingKey', 'clientName'].includes(k))
-          || ('pin' in body) === ('pairingKey' in body)) return fail(res, 'INVALID_REQUEST', 422);
-        const result = await pairing.pair(req.socket.remoteAddress ?? 'unknown', body.pin, body.clientName, 'pairingKey' in body ? body.pairingKey : null);
+        if (!body || typeof body !== 'object' || Array.isArray(body)
+          || Object.keys(body).some(k => !['pin', 'pairingKey', 'clientName', 'clientId'].includes(k))
+          || ('pin' in body) === ('pairingKey' in body)
+          || (body.clientId !== undefined && (typeof body.clientId !== 'string' || !/^[a-f0-9]{32}$/.test(body.clientId))))
+          return fail(res, 'INVALID_REQUEST', 422);
+        const result = await pairing.pair(req.socket.remoteAddress ?? 'unknown', body.pin, body.clientName,
+          'pairingKey' in body ? body.pairingKey : null, body.clientId ?? null);
         if (result.error) return fail(res, result.error, result.status, {}, result.retryAfterS ? { 'Retry-After': String(result.retryAfterS) } : {});
         onPaired?.({ clientName: String(body.clientName ?? 'Android').slice(0, 40), expiresAtUtc: result.expiresAtUtc, viaQr: 'pairingKey' in body });
         return send(res, 200, { token: result.token, expiresAtUtc: result.expiresAtUtc, bridgeId });
       }
 
-      const tokenHash = pairing.verify(req.headers.authorization);
-      if (!tokenHash) {
+      const desktop = isDesktop(req);
+      const tokenHash = desktop ? null : pairing.verify(req.headers.authorization);
+      if (!desktop && !tokenHash) {
         // Same answer for unknown and expired tokens; the console tells the user a known phone needs a new code.
         const expired = onPairingExpired && pairing.expired(req.headers.authorization);
         if (expired) onPairingExpired(expired);
@@ -241,10 +279,26 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
       }
 
       if (route === 'POST /api/v1/unpair') {
-        await pairing.revoke(tokenHash);
+        if (tokenHash) await pairing.revoke(tokenHash);
         return send(res, 204, null);
       }
       if (route === 'POST /api/v1/commands') return await handleCommand(req, res);
+      if (path === '/api/v1/mod-config' && (req.method === 'GET' || req.method === 'POST')) {
+        try {
+          if (req.method === 'GET') return send(res, 200, await gameConfig.document());
+          let body;
+          try { body = await readBody(req); } catch (e) { return fail(res, e.code ?? 'INVALID_REQUEST', e.status ?? 400); }
+          return send(res, 200, await gameConfig.update(body));
+        } catch (e) {
+          if (e instanceof ModConfigError) return fail(res, e.code, e.status, { details: e.details });
+          throw e;
+        }
+      }
+      if (path.startsWith('/api/v1/desktop/') && !desktop) return fail(res, 'NOT_FOUND', 404);
+      if (route === 'GET /api/v1/desktop/world') {
+        const docs = await documents();
+        return send(res, 200, toDesktopWorld(docs));
+      }
       if (req.method !== 'GET') return fail(res, 'NOT_FOUND', 404);
       if (/^\/api\/v1\/assets\/map-[a-f0-9]{64}$/.test(path)) {
         const map = world?.map;
@@ -260,7 +314,10 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
       if (path === '/api/v1/state') return send(res, 200, docs.state);
       if (path === '/api/v1/capabilities') {
         const folder = (await library.root()) ? null : 'CAPABILITY_UNAVAILABLE';
-        return send(res, 200, toCapabilities(docs.snap, docs.catalog, world, { 'activities.list': folder, 'activities.download': folder }));
+        const config = await gameConfig.document().catch(() => null);
+        const configRead = config?.available ? null : 'CAPABILITY_UNAVAILABLE';
+        return send(res, 200, toCapabilities(docs.snap, docs.catalog, world, { 'activities.list': folder, 'activities.download': folder,
+          'modConfig.read': configRead, 'modConfig.update': configRead ?? (config.gameRunning ? 'GAME_RUNNING' : null) }));
       }
       if (path === '/api/v1/map' || path === '/api/v1/riders') {
         const map = path === '/api/v1/map';
