@@ -1,3 +1,7 @@
 node_modules/
 outputs/
 .bridge-data/
+
+# Local release helper (not part of the repository)
+publish-release.ps1
+publish-release.cmd
