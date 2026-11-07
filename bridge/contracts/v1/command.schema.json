@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.gtav-riding-companion.invalid/v1/command.schema.json",
   "title": "POST /api/v1/commands",
-  "description": "Typed allowlist. v1.0: mod.setActive (P2). v1.1: routes and UI panel (P3). v1.2: profile, ride settings and appearance (P4). v1.3: devices.configure (P5). v1.5: activities.finish (P7). v1.7: devices.assign (P11). v1.9: devices.disconnect (P12). v1.10: workouts.select (P13, the native Select path only; pause, skip, end, ERG, target and bias stay forbidden). v1.12: player.teleport (P16, PC window only; phones get FORBIDDEN_SCOPE). P6 adds reads only. The forbidden list in policy.json can never be added. Max body 64 KiB. The server assigns timestamps and TTL; client time is ignored.",
+  "description": "Typed allowlist. v1.0: mod.setActive (P2). v1.1: routes and UI panel (P3). v1.2: profile, ride settings and appearance (P4). v1.3: devices.configure (P5). v1.5: activities.finish (P7). v1.7: devices.assign (P11). v1.9: devices.disconnect (P12). v1.10: workouts.select (P13, the native Select path only; pause, skip, end, ERG, target and bias stay forbidden). v1.12: player.teleport (P16, PC window only; phones get FORBIDDEN_SCOPE). v1.13: player.waypoint and player.clearWaypoint (P17, PC window only). P6 adds reads only. The forbidden list in policy.json can never be added. Max body 64 KiB. The server assigns timestamps and TTL; client time is ignored.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -564,6 +564,65 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "player.waypoint"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "type": "null"
+          },
+          "args": {
+            "description": "P17. PC window only (loopback desktop token); a phone gets FORBIDDEN_SCOPE. Sets GTA's own map waypoint at these GTA world metres, so the game draws its GPS route on the minimap (like a waypoint chosen in the pause map). Replaces any waypoint. Refused during a course (VALUE_NOT_ALLOWED).",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y"
+            ],
+            "properties": {
+              "x": {
+                "type": "number",
+                "minimum": -10000,
+                "maximum": 10000
+              },
+              "y": {
+                "type": "number",
+                "minimum": -10000,
+                "maximum": 10000
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "player.clearWaypoint"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expectedRevision": {
+            "type": "null"
+          },
+          "args": {
+            "description": "P17. PC window only. Removes GTA's map waypoint and its GPS route; already none is applied at once.",
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 0
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -582,7 +641,9 @@
         "devices.disconnect",
         "activities.finish",
         "workouts.select",
-        "player.teleport"
+        "player.teleport",
+        "player.waypoint",
+        "player.clearWaypoint"
       ]
     },
     "routeId": {

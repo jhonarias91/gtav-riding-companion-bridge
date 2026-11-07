@@ -176,6 +176,9 @@ export function capabilityReasons(snap, catalog) {
     'player.teleport': writeBlock(snap, 'player.teleport')
       ?? (raw.isDtOk !== true ? 'MOD_INACTIVE' : !inControl(raw) ? 'GAME_NOT_IN_CONTROL' : raw.activeRoute ? 'VALUE_NOT_ALLOWED'
         : raw.teleport?.status === 'running' ? 'BRIDGE_BUSY' : null),
+    // P17 (PC window only): GTA's map waypoint and GPS route. A course has its own guidance, so not during one.
+    'player.waypoint': writeBlock(snap, 'player.waypoint') ?? (!inControl(raw) ? 'GAME_NOT_IN_CONTROL' : raw.activeRoute ? 'VALUE_NOT_ALLOWED' : null),
+    'player.clearWaypoint': writeBlock(snap, 'player.clearWaypoint') ?? (!inControl(raw) ? 'GAME_NOT_IN_CONTROL' : raw.activeRoute ? 'VALUE_NOT_ALLOWED' : null),
   };
   return reasons;
 }
@@ -195,6 +198,8 @@ const CATALOG = [
   ['devices.disconnect', 'devices.phoneScan', 'async'],
   ['workouts.select', 'training.select', 'async'],
   ['player.teleport', 'map.gameWorld', 'async'],
+  ['player.waypoint', 'map.gameWorld', 'async'],
+  ['player.clearWaypoint', 'map.gameWorld', 'async'],
   // P15: allowlisted GTBikeVConfig.ini options, edited only with GTA V closed; they apply when the game starts.
   ['modConfig.read', 'modConfig.options', null],
   ['modConfig.update', 'modConfig.options', 'scriptReload'],

@@ -42,6 +42,8 @@
         "workouts.observe",
         "workouts.select",
         "player.teleport",
+        "player.waypoint",
+        "player.clearWaypoint",
         "activities.list",
         "activities.download",
         "activities.finish",

@@ -7,14 +7,14 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NativePairing } from './auth.mjs';
 import { AdapterLink } from './adapter-link.mjs';
-import { OperationStore } from './operations.mjs';
+import { OperationStore, waypointOf } from './operations.mjs';
 import { validateCommand, CommandError, ROLE_SENSOR_TYPES, DESKTOP_ONLY_COMMANDS } from './validate.mjs';
 import { toState, toCapabilities, capabilityReasons, toRoutesPage, toRouteDetail, toPreview, toSettings, toDevices, toWorkoutPlans, toWorkoutList, toWorkoutDetail, toWorkoutProgress } from './normalize.mjs';
 import { ActivityLibrary } from './activities.mjs';
 import { toMap, toRiders, worldReasons } from './world.mjs';
 import { ModConfigStore, ModConfigError, gtaRunning } from './mod-config.mjs';
 
-export const API_MINOR = 12; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID, 12: P16 PC teleport.
+export const API_MINOR = 13; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID, 12: P16 PC teleport, 13: P17 PC waypoint.
 export const BRIDGE_VERSION = '0.5.1-dev';
 const MAX_BODY = 64 * 1024;
 const SERVER_CODES = new Set(['INVALID_REQUEST', 'PAYLOAD_TOO_LARGE', 'AUTH_REQUIRED', 'FORBIDDEN_SCOPE', 'PAIRING_PIN_INVALID', 'PAIRING_PIN_EXPIRED', 'RATE_LIMITED', 'NOT_FOUND', 'ADAPTER_ABSENT', 'ADAPTER_STALE', 'UNSUPPORTED_VERSION', 'CAPABILITY_UNAVAILABLE', 'REVISION_CONFLICT', 'INSTANCE_CHANGED', 'MOD_TRANSITION_IN_PROGRESS', 'GAME_NOT_IN_CONTROL', 'DEVICE_CHANGED', 'WORKOUT_PC_CONTROL_REQUIRED', 'SAVE_TOO_SHORT', 'OPERATION_UNKNOWN', 'FIT_INVALID', 'ASSET_UNAVAILABLE', 'MOD_INACTIVE', 'MOD_NOT_LOADED', 'PANEL_CLOSED', 'RIDER_MOVING', 'AUTOPILOT_ON', 'VALUE_OUT_OF_RANGE', 'VALUE_NOT_ALLOWED', 'BRIDGE_BUSY', 'GAME_RUNNING', 'INTERNAL']);
@@ -50,13 +50,19 @@ function toDesktopWorld(docs) {
   const position = worldPoint(map?.position)
     ? { x: finiteOrNull(map.position.x), y: finiteOrNull(map.position.y), z: finiteOrNull(map.position.z), heading: finiteOrNull(map.position.heading) }
     : null;
+  const reasons = capabilityReasons(docs.snap, docs.catalog);
   const waypoints = Array.isArray(map?.route?.waypoints) ? map.route.waypoints.slice(0, 512).filter(worldPoint).map(p => ({ x: finiteOrNull(p.x), y: finiteOrNull(p.y) })) : [];
   return {
     adapter: docs.state.layers.adapter, mod: docs.state.layers.mod, gameControl: docs.state.layers.gameControl,
     sequence: raw?.sequence ?? null, activeRoute: docs.state.activeRoute, position,
     route: waypoints.length ? { reverse: ((map.route.courseKey ?? 0) & 0x8000) !== 0, waypoints } : null,
     // P16: why the map's "Teleport here" is unavailable right now (null = allowed).
-    teleport: { reasonCode: capabilityReasons(docs.snap, docs.catalog)['player.teleport'] },
+    teleport: { reasonCode: reasons['player.teleport'] },
+    // P17: GTA's map waypoint (set from here or in the game's pause map) and its GPS route length by road.
+    destination: {
+      reasonCode: reasons['player.waypoint'],
+      point: raw?.waypoint && worldPoint(raw.waypoint) ? waypointOf(raw.waypoint) : null,
+    },
   };
 }
 
@@ -322,7 +328,7 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
         const configRead = config?.available ? null : 'CAPABILITY_UNAVAILABLE';
         const extra = { 'activities.list': folder, 'activities.download': folder,
           'modConfig.read': configRead, 'modConfig.update': configRead ?? (config.gameRunning ? 'GAME_RUNNING' : null) };
-        if (!desktop) extra['player.teleport'] = 'FORBIDDEN_SCOPE'; // PC window only.
+        if (!desktop) for (const type of DESKTOP_ONLY_COMMANDS) extra[type] = 'FORBIDDEN_SCOPE'; // PC window only.
         return send(res, 200, toCapabilities(docs.snap, docs.catalog, world, extra));
       }
       if (path === '/api/v1/map' || path === '/api/v1/riders') {

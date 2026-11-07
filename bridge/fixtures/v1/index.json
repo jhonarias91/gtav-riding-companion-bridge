@@ -750,6 +750,43 @@
       "set": {
         "/args/z": 30
       }
+    },
+    {
+      "file": "valid/command_player_waypoint.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_player_clear_waypoint.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "derived": "command_player_waypoint_out_of_map",
+      "base": "valid/command_player_waypoint.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/y": -12000
+      }
+    },
+    {
+      "derived": "command_player_waypoint_revision",
+      "base": "valid/command_player_waypoint.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/expectedRevision": "state-0123456789ab"
+      }
+    },
+    {
+      "derived": "command_player_clear_waypoint_args",
+      "base": "valid/command_player_clear_waypoint.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/x": 1
+      }
     }
   ]
 }

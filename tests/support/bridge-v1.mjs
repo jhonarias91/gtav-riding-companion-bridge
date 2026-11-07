@@ -38,7 +38,7 @@ export class FakeAdapter {
     this.raw = {
       schema: 'gtbikev-adapter-v1', modLoaded: true, modVersion: '0.8.0.4', binding: 'compatible', bindingProfile: 'gtbikev-0804', bindingIssues: [],
       gameControl: 'inControl', isDtOk: true, modLayer: 'dataReady', receivers: { ant: 'ready', ble: 'ready' }, sport: 'cycling',
-      commands: ['mod.setActive', 'routes.apply', 'routes.preview', 'ui.openPanel', 'ui.closePanel', 'profile.update', 'rideSettings.update', 'appearance.select', 'devices.configure', 'devices.assign', 'devices.disconnect', 'activities.finish', 'workouts.select', 'player.teleport'],
+      commands: ['mod.setActive', 'routes.apply', 'routes.preview', 'ui.openPanel', 'ui.closePanel', 'profile.update', 'rideSettings.update', 'appearance.select', 'devices.configure', 'devices.assign', 'devices.disconnect', 'activities.finish', 'workouts.select', 'player.teleport', 'player.waypoint', 'player.clearWaypoint'],
       metrics: { powerW: 180, speedMps: 0, speedVirtual: true, cadenceRpm: 85, heartRateBpm: null, distanceM: 120.5, ridingTimeMs: 60000, slopeFraction: 0.01, windSpeedMps: 0, windDirRad: 0 },
       activity: { movingTimeMs: 55000, elevationGainM: 3, elevationLossM: 1, workoutPresent: false, workoutFinished: null },
       sensors: [{ role: 'power', present: true, source: 'ANT', deviceId: '54321', sensorType: 'FEC' }, { role: 'heartRate', present: false, source: 'unknown', deviceId: null, sensorType: 'unknown' }],
@@ -62,6 +62,7 @@ export class FakeAdapter {
       activities: { saveEnabled: true, activityDistanceM: 120.5, lastSaved: null },
       p8Map: { position: { x: 100, y: -200, z: 30, heading: 0 }, route: null },
       teleport: null,
+      waypoint: null,
     };
     this.teleportOutcome = 'done'; // 'done' | 'water' (GtbikeV1Teleport puts the rider back) | 'running' (never settles)
     this.workouts = {
@@ -174,6 +175,9 @@ export class FakeAdapter {
     if (cmd.type === 'devices.assign') this.assignDevice(a);
     if (cmd.type === 'devices.disconnect') this.disconnectDevice(a);
     if (cmd.type === 'activities.finish') this.pendingSave = true;
+    // Mirrors GtbikeV1Destination: GTA's waypoint blip (snapped a little) and its GPS route length.
+    if (cmd.type === 'player.waypoint') this.raw.waypoint = { x: a.x + 0.4, y: a.y - 0.3, routeFound: true, routeLengthM: 2450 };
+    if (cmd.type === 'player.clearWaypoint') this.raw.waypoint = null;
     if (cmd.type === 'player.teleport') {
       // Mirrors GtbikeV1Teleport: the outcome is reported under the command's requestId once the ground was found.
       if (this.teleportOutcome === 'running') this.raw.teleport = { requestId: cmd.requestId, status: 'running' };

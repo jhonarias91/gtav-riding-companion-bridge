@@ -1,5 +1,6 @@
 // Zoomable GTA V map: mouse wheel zooms around the cursor, left drag pans, double-click zooms in, right-click offers
-// teleporting the rider there (P16, player.teleport), centring and copying coordinates. World <-> image uses the linear calibration in gta-map.calibration.json (no rotation: the
+// teleporting the rider there (P16, player.teleport), a GPS destination (P17, the game's own map waypoint and route),
+// centring and copying coordinates. World <-> image uses the linear calibration in gta-map.calibration.json (no rotation: the
 // satellite image is north-up). Downscaled copies keep painting fast at low zoom.
 using System;
 using System.Collections.Generic;
@@ -58,6 +59,8 @@ namespace GTAVRidingCompanion
         readonly ToolStripMenuItem copyItem = new ToolStripMenuItem("Copy coordinates");
         readonly ToolStripMenuItem centerItem = new ToolStripMenuItem("Center on rider");
         readonly ToolStripMenuItem teleportItem = new ToolStripMenuItem("Teleport here") { Font = new Font("Segoe UI", 9f, FontStyle.Bold) };
+        readonly ToolStripMenuItem routeItem = new ToolStripMenuItem("Route here (GPS)");
+        readonly ToolStripMenuItem clearRouteItem = new ToolStripMenuItem("Clear destination");
         readonly ToolStripSeparator teleportSeparator = new ToolStripSeparator();
         Image full;
         readonly List<KeyValuePair<float, Bitmap>> levels = new List<KeyValuePair<float, Bitmap>>(); // scale -> copy
@@ -72,6 +75,8 @@ namespace GTAVRidingCompanion
         float riderHeading;      // GTA heading in degrees (0 = north, counter-clockwise)
         List<PointF> route = new List<PointF>();
         PointF? target;          // image coordinates of a teleport in progress
+        PointF? destination;     // image coordinates of the game's map waypoint
+        string destinationText;  // "2.4 km by road" or null
 
         public event Action FollowChanged;
         /// <summary>World X/Y (metres) the user chose with "Teleport here".</summary>
@@ -80,6 +85,14 @@ namespace GTAVRidingCompanion
         public bool TeleportVisible { get; set; }
         /// <summary>Why "Teleport here" is unavailable right now; null when it is allowed.</summary>
         public string TeleportBlock { get; set; }
+        /// <summary>World X/Y (metres) the user chose with "Route here (GPS)".</summary>
+        public event Action<double, double> RouteRequested;
+        public event Action ClearRouteRequested;
+        /// <summary>false hides the destination items (bridge older than P17).</summary>
+        public bool DestinationVisible { get; set; }
+        /// <summary>Why the destination cannot be set or cleared right now; null when it can.</summary>
+        public string DestinationBlock { get; set; }
+        public bool HasDestination { get { return destination.HasValue; } }
         public bool Follow { get; private set; }
         public string Overlay { get; set; }
 
@@ -100,7 +113,12 @@ namespace GTAVRidingCompanion
             {
                 if (TeleportRequested != null) TeleportRequested(calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y));
             };
-            menu.Items.AddRange(new ToolStripItem[] { teleportItem, teleportSeparator, centerItem, copyItem });
+            routeItem.Click += (s, e) =>
+            {
+                if (RouteRequested != null) RouteRequested(calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y));
+            };
+            clearRouteItem.Click += (s, e) => { if (ClearRouteRequested != null) ClearRouteRequested(); };
+            menu.Items.AddRange(new ToolStripItem[] { teleportItem, routeItem, clearRouteItem, teleportSeparator, centerItem, copyItem });
         }
 
         /// <summary>Loads the image and builds the downscaled copies off the UI thread.</summary>
@@ -162,6 +180,24 @@ namespace GTAVRidingCompanion
             route = new List<PointF>();
             if (points != null) foreach (var p in points) route.Add(calibration.ToImage(p.Key, p.Value));
             Invalidate();
+        }
+
+        /// <summary>Shows the game's map waypoint (null clears it) and its GPS route length by road.</summary>
+        public void SetDestination(double? x, double? y, double? routeLengthM, bool routeFound)
+        {
+            PointF? next = x.HasValue && y.HasValue ? (PointF?)calibration.ToImage(x.Value, y.Value) : null;
+            string text = !next.HasValue ? null
+                : routeFound && routeLengthM.HasValue ? FormatDistance(routeLengthM.Value) + " by road"
+                : routeFound ? "GPS route in the game" : "no road route found";
+            if (next == destination && text == destinationText) return;
+            destination = next;
+            destinationText = text;
+            Invalidate();
+        }
+
+        static string FormatDistance(double metres)
+        {
+            return metres >= 1000 ? (metres / 1000).ToString("0.0", CultureInfo.InvariantCulture) + " km" : Math.Round(metres) + " m";
         }
 
         /// <summary>Marks where a teleport is going (null clears it).</summary>
@@ -261,9 +297,16 @@ namespace GTAVRidingCompanion
                 centerItem.Enabled = rider.HasValue;
                 bool insideMap = menuImagePoint.X >= 0 && menuImagePoint.Y >= 0 && menuImagePoint.X <= imageWidth && menuImagePoint.Y <= imageHeight;
                 string block = !insideMap ? "outside the map" : TeleportBlock;
-                teleportItem.Visible = teleportSeparator.Visible = TeleportVisible;
+                teleportItem.Visible = TeleportVisible;
+                teleportSeparator.Visible = TeleportVisible || DestinationVisible;
                 teleportItem.Enabled = block == null;
                 teleportItem.Text = block == null ? "Teleport here" : "Teleport here (" + block + ")";
+                string routeBlock = !insideMap ? "outside the map" : DestinationBlock;
+                routeItem.Visible = DestinationVisible;
+                routeItem.Enabled = routeBlock == null;
+                routeItem.Text = routeBlock == null ? (destination.HasValue ? "Route here instead (GPS)" : "Route here (GPS)") : "Route here (" + routeBlock + ")";
+                clearRouteItem.Visible = DestinationVisible && destination.HasValue;
+                clearRouteItem.Enabled = DestinationBlock == null;
                 menu.Show(this, e.Location);
             }
         }
@@ -303,9 +346,11 @@ namespace GTAVRidingCompanion
                     g.DrawLines(pen, points);
                 }
             }
+            if (destination.HasValue) DrawDestination(g, ToScreen(destination.Value), rider.HasValue ? (PointF?)ToScreen(rider.Value) : null);
             if (target.HasValue) DrawTarget(g, ToScreen(target.Value));
             if (rider.HasValue) DrawRider(g, ToScreen(rider.Value));
             DrawScale(g);
+            if (destinationText != null) Chip(g, "Destination: " + destinationText);
             if (!String.IsNullOrEmpty(Overlay)) Banner(g, Overlay);
         }
 
@@ -343,6 +388,40 @@ namespace GTAVRidingCompanion
                 g.DrawPolygon(outline, arrow);
             }
             g.Restore(state);
+        }
+
+        static readonly Color Waypoint = Color.FromArgb(255, 168, 85, 247); // GTA's waypoint is purple too.
+
+        static void DrawDestination(Graphics g, PointF p, PointF? from)
+        {
+            if (from.HasValue)
+            {
+                // Straight guide only: the road route itself is the GPS line the game draws on its minimap.
+                using (var guide = new Pen(Color.FromArgb(200, Waypoint), 2f) { DashStyle = DashStyle.Dash })
+                    g.DrawLine(guide, from.Value, p);
+            }
+            // Map pin: circle on a point, white outline.
+            var pin = new GraphicsPath();
+            pin.AddArc(p.X - 10, p.Y - 34, 20, 20, 150, 240);
+            pin.AddLine(p.X + 8.7f, p.Y - 19, p.X, p.Y);
+            pin.CloseFigure();
+            using (var shadow = new Pen(Color.FromArgb(150, 0, 0, 0), 4.5f)) g.DrawPath(shadow, pin);
+            using (var fill = new SolidBrush(Waypoint)) g.FillPath(fill, pin);
+            using (var outline = new Pen(Color.White, 2f)) g.DrawPath(outline, pin);
+            g.FillEllipse(Brushes.White, p.X - 4, p.Y - 28, 8, 8);
+            pin.Dispose();
+        }
+
+        void Chip(Graphics g, string text)
+        {
+            using (var font = new Font("Segoe UI", 9.5f, FontStyle.Bold))
+            {
+                SizeF size = g.MeasureString(text, font);
+                var box = new RectangleF(12, 12, size.Width + 30, size.Height + 10);
+                using (var back = new SolidBrush(Color.FromArgb(210, 15, 23, 42))) g.FillRectangle(back, box);
+                using (var dot = new SolidBrush(Waypoint)) g.FillEllipse(dot, box.X + 9, box.Y + box.Height / 2 - 5, 10, 10);
+                g.DrawString(text, font, Brushes.White, box.X + 24, box.Y + 5);
+            }
         }
 
         static void DrawTarget(Graphics g, PointF p)

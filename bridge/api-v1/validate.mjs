@@ -36,10 +36,10 @@ export const isBleAddress = v => typeof v === 'string' && BLE_ADDRESS.test(v) &&
 export const DIFFICULTY_LEVELS = [0, 25, 50, 75, 100, 255];
 export const PANELS = ['routes'];
 export const PROFILE_RANGES = { weightKg: [40, 150], ftpW: [50, 500], hrMaxBpm: [50, 220] };
-/** |x| and |y| bound for player.teleport (the playable map spans about -4000..8000 m). Mirrored in GtbikeV1Teleport. */
+/** |x| and |y| bound for player.teleport and player.waypoint (the map spans about -4000..8000 m). Mirrored in the adapter. */
 export const TELEPORT_LIMIT_M = 10_000;
 /** Commands only the PC window's loopback desktop token may send. */
-export const DESKTOP_ONLY_COMMANDS = new Set(['player.teleport']);
+export const DESKTOP_ONLY_COMMANDS = new Set(['player.teleport', 'player.waypoint', 'player.clearWaypoint']);
 
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isInt = v => typeof v === 'number' && Number.isInteger(v);
@@ -131,14 +131,13 @@ const ARGS = {
     return { workoutId: a.workoutId };
   },
   // P16: PC window only (server.mjs refuses phones). Raw GTA world metres; the adapter finds the ground itself.
-  'player.teleport': (a, revision) => {
-    onlyKeys(a, ['x', 'y'], ['x', 'y']);
+  'player.teleport': (a, revision) => worldPointArgs(a, revision),
+  // P17: GTA's own map waypoint (the game draws the GPS route on the minimap). PC window only, like teleport.
+  'player.waypoint': (a, revision) => worldPointArgs(a, revision),
+  'player.clearWaypoint': (a, revision) => {
+    onlyKeys(a, []);
     if (revision !== null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
-    for (const key of ['x', 'y']) {
-      if (typeof a[key] !== 'number' || !Number.isFinite(a[key])) throw new CommandError('INVALID_REQUEST', 422, { field: key });
-      if (Math.abs(a[key]) > TELEPORT_LIMIT_M) throw new CommandError('VALUE_OUT_OF_RANGE', 422, { field: key });
-    }
-    return { x: Math.round(a.x * 100) / 100, y: Math.round(a.y * 100) / 100 };
+    return {};
   },
   'activities.finish': (a, revision) => {
     onlyKeys(a, []);
@@ -154,6 +153,16 @@ const ARGS = {
     return { [keys[0]]: a[keys[0]] };
   },
 };
+
+function worldPointArgs(a, revision) {
+  onlyKeys(a, ['x', 'y'], ['x', 'y']);
+  if (revision !== null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
+  for (const key of ['x', 'y']) {
+    if (typeof a[key] !== 'number' || !Number.isFinite(a[key])) throw new CommandError('INVALID_REQUEST', 422, { field: key });
+    if (Math.abs(a[key]) > TELEPORT_LIMIT_M) throw new CommandError('VALUE_OUT_OF_RANGE', 422, { field: key });
+  }
+  return { x: Math.round(a.x * 100) / 100, y: Math.round(a.y * 100) / 100 };
+}
 
 function panelArgs(a) {
   onlyKeys(a, ['panel'], ['panel']);

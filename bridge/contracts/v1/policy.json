@@ -1,5 +1,5 @@
 {
-  "policyVersion": "v1-p16",
+  "policyVersion": "v1-p17",
   "status": "proposal",
   "note": "Machine-readable allowlist and denylist for the native Android scope. Enforced in bridge, adapter and tests, not only by hiding UI.",
   "capabilityCatalog": [
@@ -23,6 +23,8 @@
     { "id": "workouts.observe", "phase": "P6", "kind": "read", "helpId": "training.progress" },
     { "id": "workouts.select", "phase": "P13", "kind": "write", "helpId": "training.select", "commandType": "workouts.select", "note": "Requested by the user on 2026-11-06. Only the native Select path; the mod engages ERG itself. Like the mod menu, it replaces a running workout (the phone warns first; the old workout bot is retired). Workout.End stays forbidden." },
     { "id": "player.teleport", "phase": "P16", "kind": "write", "helpId": "map.gameWorld", "commandType": "player.teleport", "note": "Requested by the user on 2026-11-06 (right-click on the PC window map). PC window only: the bridge refuses phones with FORBIDDEN_SCOPE. GTA natives only (no GTBikeV member). Mod active, game in control and no course loaded." },
+    { "id": "player.waypoint", "phase": "P17", "kind": "write", "helpId": "map.gameWorld", "commandType": "player.waypoint", "note": "Requested by the user on 2026-11-06 (right-click on the PC window map: mark the route to a destination). PC window only. Sets GTA's own map waypoint (SET_NEW_WAYPOINT); the game draws the GPS route. GTA natives only. Not during a course." },
+    { "id": "player.clearWaypoint", "phase": "P17", "kind": "write", "helpId": "map.gameWorld", "commandType": "player.clearWaypoint", "note": "PC window only. SET_WAYPOINT_OFF. Not during a course (it could remove guidance the mod set)." },
     { "id": "activities.list", "phase": "P7", "kind": "read", "helpId": "activity.history" },
     { "id": "activities.download", "phase": "P7", "kind": "read", "helpId": "activity.download" },
     { "id": "activities.finish", "phase": "P7", "kind": "write", "helpId": "activity.save", "indirectGuard": "workout-not-finished", "commandType": "activities.finish" },

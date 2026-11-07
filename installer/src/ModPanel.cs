@@ -117,6 +117,8 @@ namespace GTAVRidingCompanion
             follow.CheckedChanged += (s, e) => map.SetFollow(follow.Checked);
             map.FollowChanged += () => { if (follow.Checked != map.Follow) follow.Checked = map.Follow; };
             map.TeleportRequested += async (x, y) => await Teleport(x, y);
+            map.RouteRequested += async (x, y) => await SetDestination(x, y);
+            map.ClearRouteRequested += async () => await ClearDestination();
             toolbar.Controls.AddRange(new Control[] { title, follow, zoomIn, zoomOut, whole });
             mapArea.Controls.Add(toolbar, 0, 0);
             var frame = new Panel { Dock = DockStyle.Fill, Padding = new Padding(1), BackColor = Ui.Border };
@@ -136,7 +138,7 @@ namespace GTAVRidingCompanion
             downloadCard.Visible = !File.Exists(Paths.MapImage);
             mapArea.Controls.Add(frame, 0, 1);
             var hint = new Label { Dock = DockStyle.Fill, ForeColor = Ui.Muted, Padding = new Padding(0, 6, 0, 0),
-                Text = "Scroll to zoom · drag to move · double-click to zoom in · right-click to teleport or copy coordinates" };
+                Text = "Scroll to zoom · drag to move · double-click to zoom in · right-click to teleport, set a GPS destination or copy coordinates" };
             mapArea.Controls.Add(hint, 0, 2);
 
             side.Controls.Add(message);
@@ -244,6 +246,8 @@ namespace GTAVRidingCompanion
                 map.Overlay = Reasons.Text(world.ErrorCode);
                 map.SetRider(null, null, null);
                 map.TeleportBlock = "no game data";
+                map.DestinationBlock = "no game data";
+                map.SetDestination(null, null, null, false);
                 return;
             }
             var body = world.Body;
@@ -251,6 +255,13 @@ namespace GTAVRidingCompanion
             map.TeleportVisible = Json.Get(body, "teleport") != null;
             string teleportReason = Json.Str(Json.Obj(body, "teleport"), "reasonCode");
             map.TeleportBlock = commandRunning ? "wait for the current action" : teleportReason == null ? null : TeleportBlockText(teleportReason);
+            // P17: the game's map waypoint (from here or the pause map); older bridges send no "destination".
+            var destination = Json.Obj(body, "destination");
+            map.DestinationVisible = destination != null;
+            string destinationReason = Json.Str(destination, "reasonCode");
+            map.DestinationBlock = commandRunning ? "wait for the current action" : destinationReason == null ? null : DestinationBlockText(destinationReason);
+            var point = Json.Obj(destination, "point");
+            map.SetDestination(Json.Num(point, "x"), Json.Num(point, "y"), Json.Num(point, "routeLengthM"), Json.Bool(point, "routeFound") == true);
             string adapter = Json.Str(body, "adapter"), mod = Json.Str(body, "mod"), control = Json.Str(body, "gameControl");
             var position = Json.Obj(body, "position");
             map.SetRider(Json.Num(position, "x"), Json.Num(position, "y"), Json.Num(position, "heading"));
@@ -409,6 +420,32 @@ namespace GTAVRidingCompanion
                 case "ADAPTER_ABSENT": return "GTA V is not running";
                 default: return Reasons.Text(code).TrimEnd('.');
             }
+        }
+
+        static string DestinationBlockText(string code)
+        {
+            return code == "VALUE_NOT_ALLOWED" ? "not during a route: the route already guides you" : TeleportBlockText(code);
+        }
+
+        /// <summary>P17: sets GTA's own map waypoint; the game draws the GPS route on its minimap.</summary>
+        async Task SetDestination(double x, double y)
+        {
+            var args = new Dictionary<string, object> { { "x", Math.Round(x, 1) }, { "y", Math.Round(y, 1) } };
+            var op = await Command("player.waypoint", args, null, "Setting the destination…", code =>
+                code == "VALUE_NOT_ALLOWED" ? "A route is loaded, and it already guides you. Choose Free ride to use a destination." : null);
+            if (op == null) return;
+            var observed = Json.Obj(op, "observed");
+            map.SetDestination(Json.Num(observed, "x"), Json.Num(observed, "y"), Json.Num(observed, "routeLengthM"), Json.Bool(observed, "routeFound") == true);
+            Done(Json.Bool(observed, "routeFound") == true ? "Destination set. Follow the purple GPS line on the game's minimap."
+                : "Destination set, but the game found no road route to it. It is still marked on the game's map.");
+        }
+
+        async Task ClearDestination()
+        {
+            var op = await Command("player.clearWaypoint", new Dictionary<string, object>(), null, "Clearing the destination…");
+            if (op == null) return;
+            map.SetDestination(null, null, null, false);
+            Done("Destination cleared.");
         }
 
         /// <summary>P16: moves the rider (and the bike) to the clicked point; the game finds the ground and the nearest road.</summary>

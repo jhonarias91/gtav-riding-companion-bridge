@@ -1,0 +1,10 @@
+{
+  "requestId": "7f2a3b4c-5d6e-4f7a-8b9c-0d1e2f3a4b5c",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "player.waypoint",
+  "expectedRevision": null,
+  "args": {
+    "x": 215.5,
+    "y": -810.25
+  }
+}

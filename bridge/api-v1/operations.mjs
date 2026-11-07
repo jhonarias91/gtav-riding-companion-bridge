@@ -22,8 +22,15 @@ export const EVIDENCE_TIMEOUT_MS = {
   'activities.finish': 15_000,
   'workouts.select': 8_000,
   'player.teleport': 15_000, // The adapter gives up after ~12 s of streaming and puts the rider back.
+  'player.waypoint': 5_000,
+  'player.clearWaypoint': 5_000,
 };
 const TELEPORT_FAILURES = new Set(['VALUE_NOT_ALLOWED', 'GAME_NOT_IN_CONTROL', 'INTERNAL']);
+
+const round2 = v => Math.round(v * 100) / 100;
+/** The adapter's waypoint report, bounded: {x, y, routeFound, routeLengthM}. */
+export const waypointOf = w => ({ x: round2(w.x), y: round2(w.y), routeFound: w.routeFound === true,
+  routeLengthM: Number.isInteger(w.routeLengthM) && w.routeLengthM > 0 && w.routeLengthM < 100_000 ? w.routeLengthM : null });
 
 const sameRoute = (a, b) => (a === null && b === null) || (a !== null && b !== null && a.id === b.id && a.loop === b.loop && a.reverse === b.reverse);
 
@@ -124,6 +131,13 @@ const EVIDENCE = {
     if (t.status === 'failed') return { status: 'failed', observed: { moved: false }, code: TELEPORT_FAILURES.has(t.reasonCode) ? t.reasonCode : 'INTERNAL' };
     return null;
   },
+  // 'applied' = the game's map waypoint sits on the requested point (the blip snaps by a few metres at most).
+  'player.waypoint': (args, base, { snap }) => {
+    const w = snap?.fresh ? snap.raw.waypoint : null;
+    if (!w || !Number.isFinite(w.x) || !Number.isFinite(w.y) || Math.hypot(w.x - args.x, w.y - args.y) > 5) return null;
+    return { status: 'applied', observed: waypointOf(w) };
+  },
+  'player.clearWaypoint': (args, base, { snap }) => (snap?.fresh && !snap.raw.waypoint ? { status: 'applied', observed: { waypoint: null } } : null),
   'appearance.select': (args, base, { settings }) => {
     if (!settings) return null;
     const [key] = Object.keys(args);

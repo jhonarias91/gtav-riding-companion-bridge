@@ -72,7 +72,11 @@ namespace CompanionBridge.V1
                 if (binding != null && binding.CanSetActive && world != null)
                     world.Capture(snapshot, now, () => ReadPlayerPosition(gameControl), value => MapPoint((Vector3)value));
                 if (binding != null && extensions != null && (string)snapshot["binding"] != "incompatible")
+                {
                     ((List<string>)snapshot["commands"]).Add("player.teleport");
+                    ((List<string>)snapshot["commands"]).Add("player.waypoint");
+                    ((List<string>)snapshot["commands"]).Add("player.clearWaypoint");
+                }
             }
             catch (Exception e)
             {
@@ -89,6 +93,8 @@ namespace CompanionBridge.V1
             snapshot["capturedAtUtc"] = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
             snapshot["gameControl"] = gameControl;
             snapshot["teleport"] = teleport.Report; // Evidence for player.teleport: requestId + running|done|failed.
+            try { snapshot["waypoint"] = GtbikeV1Destination.Read(); } // GTA map waypoint + GPS route length (PC map).
+            catch (Exception) { snapshot["waypoint"] = null; }
             lastSnapshot = snapshot;
             Dictionary<string, object> toWrite = snapshot;
             Dictionary<string, object> catalog = extensions == null ? null : extensions.TakeCatalog();
@@ -235,6 +241,9 @@ namespace CompanionBridge.V1
             double? speedMps = speed == null ? (double?)null : Convert.ToDouble(speed, CultureInfo.InvariantCulture);
             // P16: only the PC window may send it (the bridge refuses phones). Blocked during a course: it would break it.
             if (type == "player.teleport") return teleport.Start(id, args, dtOk, gameControl, Get(lastSnapshot, "activeRoute") != null);
+            // P17: GTA's own waypoint, so the game draws the GPS route on the minimap.
+            if (type == "player.waypoint") return GtbikeV1Destination.Set(args, gameControl, Get(lastSnapshot, "activeRoute") != null);
+            if (type == "player.clearWaypoint") return GtbikeV1Destination.Clear(args, gameControl, Get(lastSnapshot, "activeRoute") != null);
             if (type == "routes.apply")
             {
                 if (args.Count != 3 || !args.ContainsKey("routeId") || !(Get(args, "loop") is bool) || !(Get(args, "reverse") is bool)) return Rejected("INVALID_REQUEST");
