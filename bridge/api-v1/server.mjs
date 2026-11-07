@@ -9,6 +9,7 @@ import { NativePairing } from './auth.mjs';
 import { AdapterLink } from './adapter-link.mjs';
 import { OperationStore, waypointOf } from './operations.mjs';
 import { validateCommand, CommandError, ROLE_SENSOR_TYPES, DESKTOP_ONLY_COMMANDS } from './validate.mjs';
+import packageInfo from '../../package.json' with { type: 'json' };
 import { toState, toCapabilities, capabilityReasons, toRoutesPage, toRouteDetail, toPreview, toSettings, toDevices, toWorkoutPlans, toWorkoutList, toWorkoutDetail, toWorkoutProgress } from './normalize.mjs';
 import { ActivityLibrary } from './activities.mjs';
 import { toMap, toRiders, worldReasons } from './world.mjs';
@@ -16,7 +17,8 @@ import { ModConfigStore, ModConfigError, gtaRunning } from './mod-config.mjs';
 import { toAddons, addonPrecheck, addonPoints, addonSegments, addonPlaces, toProgress } from './addons.mjs';
 
 export const API_MINOR = 14; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID, 12: P16 PC teleport, 13: P17 PC waypoint, 14: P18 add-ons.
-export const BRIDGE_VERSION = '0.5.1-dev';
+// The release version lives in package.json only (the installer reads it too); esbuild inlines it into the bundle.
+export const BRIDGE_VERSION = packageInfo.version;
 const MAX_BODY = 64 * 1024;
 const SERVER_CODES = new Set(['INVALID_REQUEST', 'PAYLOAD_TOO_LARGE', 'AUTH_REQUIRED', 'FORBIDDEN_SCOPE', 'PAIRING_PIN_INVALID', 'PAIRING_PIN_EXPIRED', 'RATE_LIMITED', 'NOT_FOUND', 'ADAPTER_ABSENT', 'ADAPTER_STALE', 'UNSUPPORTED_VERSION', 'CAPABILITY_UNAVAILABLE', 'REVISION_CONFLICT', 'INSTANCE_CHANGED', 'MOD_TRANSITION_IN_PROGRESS', 'GAME_NOT_IN_CONTROL', 'DEVICE_CHANGED', 'WORKOUT_PC_CONTROL_REQUIRED', 'SAVE_TOO_SHORT', 'OPERATION_UNKNOWN', 'FIT_INVALID', 'ASSET_UNAVAILABLE', 'MOD_INACTIVE', 'MOD_NOT_LOADED', 'PANEL_CLOSED', 'RIDER_MOVING', 'AUTOPILOT_ON', 'VALUE_OUT_OF_RANGE', 'VALUE_NOT_ALLOWED', 'BRIDGE_BUSY', 'GAME_RUNNING', 'RIDER_NOT_ON_BIKE', 'ADDON_NO_POINTS', 'ADDON_BUSY', 'INTERNAL']);
 const STATUS = {
