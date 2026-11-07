@@ -70,7 +70,14 @@ The window has these tabs:
 - **Phone**: QR code, manual pairing code, address, bridge identity, key fingerprint and paired phones. Keep the window open while riding.
 - **Mod**: activate/deactivate GTBike V, rider profile, ride settings, bicycle and character (the same options as the Android app), and a live map showing where you are and the loaded route. Scroll to zoom, drag to move, double-click to zoom in, right-click to **Teleport here** (free ride only; the game puts you on the ground or the nearest road), set a **GPS destination** (the game draws the route on its minimap; the map shows the distance by road) or copy coordinates. The map image is not shipped in the installer: the first time, press **Download map (15 MB)**; it is saved in `%LOCALAPPDATA%GTBikeVCompanionmap` and checked against the calibration in `installer
 esourcesgta-map.calibration.json` (size and dimensions) before use.
-- **Routes**: search the course catalog, see details, choose loop/reverse, **Apply route**, **Free ride**, or **Show in game** (opens GTBike V's route selector on that route). The same warnings as the phone, including restarting a running workout.
+- **Routes**: selecting a course shows its details, file and route on a map in the same tab. **Download map (15 MB)** shares the Mod tab's cached image. The preview connects waypoints; GTA V calculates the road path. Local courses also work offline.
+
+  **Create editable copy / Edit copy** opens directly on **Map**. Click a point or segment to select the nearest waypoint, highlighted in blue. Hold the left mouse button and drag it: the line follows the movement, and releasing commits the new location. Drag empty space to pan and scroll to zoom. Escape cancels an active drag.
+
+  **New** starts a course from scratch: click the start, then each intermediate point and the finish. **Undo last point** removes the last click. Press **Finish route**, then **Save route**. A start and finish are sufficient; **Add points** extends an existing course. The game resolves terrain height for points placed or moved on the map. **Details**, **Waypoints**, and **Advanced JSON** retain the name, author, description, notes, categories, activity types, loop support, statistics, coordinates/height, markers, props, and other options.
+
+  Personal routes live in `Documents\Rockstar Games\GTA V\ModSettings\CompanionRoutes`, with their own ids and versions. Save at any time. With GTA V closed, **Add copies to game** merges them into the native `ModSettings\courses.json`, keeping a backup; returning to Routes with the game closed also publishes pending courses. Start GTA V afterwards to use them. The personal library survives official catalog replacement and can be published again with GTA V closed. **Apply route**, **Free ride**, and **Show in game** retain the phone's warnings, including restarting a running workout.
+
 - **Training**: workout plans and workouts with their power profile, the workout running in the game, and **Select and start**. Pausing, skipping, ending and ERG stay in the game.
 - **Sensors**: which device GTBike V uses for each function and its rule (Auto, Lock, Skip), and disconnecting a Bluetooth sensor. Finding a new Bluetooth sensor stays in the phone app.
 - **Activities**: saved rides with their summary and power chart, **Show file in folder**, and **Save current activity**.
@@ -362,4 +369,4 @@ Tests use temporary folders and a simulated adapter. They do not need GTA V. Beh
 
 ## License
 
-No license has been chosen yet. Until a `LICENSE` file is added, all rights are reserved.
+This project is licensed under the [MIT License](https://github.com/jhonarias91/gtav-riding-companion-bridge/blob/main/LICENSE).

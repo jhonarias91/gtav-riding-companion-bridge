@@ -15,7 +15,7 @@ namespace GTAVRidingCompanion
     {
         readonly TabControl tabs = new TabControl { Dock = DockStyle.Fill, Padding = new Point(18, 6) };
         readonly TabPage phoneTab = new TabPage("Phone"), modTab = new TabPage("Mod"), routesTab = new TabPage("Routes"), trainingTab = new TabPage("Training"),
-            sensorsTab = new TabPage("Sensors"), activitiesTab = new TabPage("Activities"), optionsTab = new TabPage("Game options"), setupTab = new TabPage("Setup"), webTab = new TabPage("Web");
+            sensorsTab = new TabPage("Sensors"), activitiesTab = new TabPage("Activities"), addonsTab = new TabPage("Add-ons"), optionsTab = new TabPage("Game options"), setupTab = new TabPage("Setup"), webTab = new TabPage("Web");
         readonly Label headerStatus = new Label { AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225), Font = new Font("Segoe UI", 10f), Anchor = AnchorStyles.Right };
         readonly Label footer = new Label { Dock = DockStyle.Fill, ForeColor = Ui.Muted, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0) };
         // Phone tab
@@ -71,12 +71,13 @@ namespace GTAVRidingCompanion
             panels[trainingTab] = new TrainingPanel(() => client);
             panels[sensorsTab] = new SensorsPanel(() => client);
             panels[activitiesTab] = new ActivitiesPanel(() => client);
+            panels[addonsTab] = new AddonsPanel(() => client);
             panels[optionsTab] = new GameOptionsPanel(() => client);
             foreach (var pair in panels) pair.Key.Controls.Add(pair.Value);
             BuildSetupTab();
             webPanel = new WebPanel(CurrentBridgeLink, StartBridge, RefreshPairing);
             webTab.Controls.Add(webPanel);
-            tabs.TabPages.AddRange(new[] { phoneTab, modTab, routesTab, trainingTab, sensorsTab, activitiesTab, optionsTab, setupTab, webTab });
+            tabs.TabPages.AddRange(new[] { phoneTab, modTab, routesTab, trainingTab, sensorsTab, activitiesTab, addonsTab, optionsTab, setupTab, webTab });
             foreach (TabPage page in tabs.TabPages) page.BackColor = Ui.Surface;
             tabs.SelectedIndexChanged += (s, e) => ActivateTab();
 

@@ -119,6 +119,12 @@ namespace GTAVRidingCompanion
             map.TeleportRequested += async (x, y) => await Teleport(x, y);
             map.RouteRequested += async (x, y) => await SetDestination(x, y);
             map.ClearRouteRequested += async () => await ClearDestination();
+            map.SegmentCreateRequested += async (sx, sy, fx, fy) => await SaveSegment(null, null, sx, sy, fx, fy);
+            map.SegmentRenameRequested += async mark => await SaveSegment(mark.Id, mark.Name, mark.StartX, mark.StartY, mark.FinishX, mark.FinishY);
+            map.SegmentRemoveRequested += async mark => await RemoveSegment(mark);
+            map.PlaceSaveRequested += async (x, y) => await SavePlace(null, null, x, y);
+            map.PlaceRenameRequested += async mark => await SavePlace(mark.Id, mark.Name, mark.X, mark.Y);
+            map.PlaceRemoveRequested += async mark => await RemovePlace(mark);
             toolbar.Controls.AddRange(new Control[] { title, follow, zoomIn, zoomOut, whole });
             mapArea.Controls.Add(toolbar, 0, 0);
             var frame = new Panel { Dock = DockStyle.Fill, Padding = new Padding(1), BackColor = Ui.Border };
@@ -248,9 +254,24 @@ namespace GTAVRidingCompanion
                 map.TeleportBlock = "no game data";
                 map.DestinationBlock = "no game data";
                 map.SetDestination(null, null, null, false);
+                map.SegmentBlock = "no game data";
                 return;
             }
             var body = world.Body;
+            // P18: ghost segments (older bridges send no "segments").
+            map.SegmentsVisible = Json.Get(body, "segments") != null;
+            map.SegmentBlock = commandRunning ? "wait for the current action" : Json.Str(body, "adapter") != "fresh" ? "the game is not sending data" : null;
+            segmentCount = Json.List(body, "segments").Count;
+            // P18: Discover places (older bridges send no "places").
+            map.PlacesVisible = Json.Get(body, "places") != null;
+            placeCount = Json.List(body, "places").Count;
+            map.SetPlaces(Json.List(body, "places").Select(m => new PlaceMark {
+                Id = Json.Str(m, "id"), Name = Json.Str(m, "name"), Found = Json.Int(m, "found") ?? 0,
+                X = Json.Num(Json.Obj(m, "point"), "x") ?? 0, Y = Json.Num(Json.Obj(m, "point"), "y") ?? 0 }));
+            map.SetSegments(Json.List(body, "segments").Select(m => new SegmentMark {
+                Id = Json.Str(m, "id"), Name = Json.Str(m, "name"), Loop = Json.Bool(m, "loop") == true, BestTimeS = Json.Num(m, "bestTimeS"),
+                StartX = Json.Num(Json.Obj(m, "start"), "x") ?? 0, StartY = Json.Num(Json.Obj(m, "start"), "y") ?? 0,
+                FinishX = Json.Num(Json.Obj(m, "finish"), "x") ?? 0, FinishY = Json.Num(Json.Obj(m, "finish"), "y") ?? 0 }));
             // P16: the bridge says why "Teleport here" is unavailable; an older bridge sends no "teleport" at all.
             map.TeleportVisible = Json.Get(body, "teleport") != null;
             string teleportReason = Json.Str(Json.Obj(body, "teleport"), "reasonCode");
@@ -425,6 +446,57 @@ namespace GTAVRidingCompanion
         static string DestinationBlockText(string code)
         {
             return code == "VALUE_NOT_ALLOWED" ? "not during a route: the route already guides you" : TeleportBlockText(code);
+        }
+
+        int segmentCount, placeCount;
+
+        /// <summary>P18: saves (id null) or renames a Discover place; asks for its name first.</summary>
+        async Task SavePlace(string id, string currentName, double x, double y)
+        {
+            string name = PromptDialog.Ask(FindForm(), id == null ? "New place" : "Rename place",
+                id == null ? "Name this place. Discover may hide it as a spot to find (you will only get a hint):" : "New name:", currentName ?? "Place " + (placeCount + 1), 40);
+            if (name == null) return;
+            var args = new Dictionary<string, object> { { "addonId", "discover" }, { "placeId", id }, { "name", name },
+                { "point", new Dictionary<string, object> { { "x", Math.Round(x, 1) }, { "y", Math.Round(y, 1) } } } };
+            var op = await Command("addons.savePlace", args, null, "Saving the place…", code =>
+                code == "VALUE_NOT_ALLOWED" ? "Not now: it is the spot being searched, or there are already 100 places." : null);
+            if (op != null) Done(id == null ? "Place “" + name + "” saved. Discover can now hide it as a spot to find." : "Place renamed to “" + name + "”.");
+        }
+
+        async Task RemovePlace(PlaceMark mark)
+        {
+            using (var dialog = new ConfirmDialog("Remove “" + mark.Name + "”?", "The place leaves the map and Discover. Your XP and past finds stay.", "Remove"))
+                if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+            var op = await Command("addons.removePlace", new Dictionary<string, object> { { "addonId", "discover" }, { "placeId", mark.Id } }, null, "Removing the place…",
+                code => code == "VALUE_NOT_ALLOWED" ? "It is the spot being searched right now. Finish or stop Discover first." : null);
+            if (op != null) Done("Place “" + mark.Name + "” removed.");
+        }
+
+        /// <summary>P18: creates (id null) or renames a ghost segment; asks for its name first.</summary>
+        async Task SaveSegment(string id, string currentName, double sx, double sy, double fx, double fy)
+        {
+            bool loop = Math.Sqrt((fx - sx) * (fx - sx) + (fy - sy) * (fy - sy)) < 30;
+            string name = PromptDialog.Ask(FindForm(), id == null ? "New ghost segment" : "Rename segment",
+                id == null ? (loop ? "Start and finish are the same point, so this is a loop. Name it:" : "Name this segment:") : "New name:",
+                currentName ?? "Segment " + (segmentCount + 1), 40);
+            if (name == null) return;
+            var args = new Dictionary<string, object> {
+                { "addonId", "ghost" }, { "segmentId", id }, { "name", name },
+                { "start", new Dictionary<string, object> { { "x", Math.Round(sx, 1) }, { "y", Math.Round(sy, 1) } } },
+                { "finish", new Dictionary<string, object> { { "x", Math.Round(fx, 1) }, { "y", Math.Round(fy, 1) } } } };
+            var op = await Command("addons.saveSegment", args, null, "Saving the segment…", code =>
+                code == "VALUE_NOT_ALLOWED" ? "Not now: you are riding this segment, or there are already 50 segments." : null);
+            if (op == null) return;
+            Done(id == null ? "Segment “" + name + "” saved. Turn on Ghost segments in the Add-ons tab and ride through its start." : "Segment renamed to “" + name + "”.");
+        }
+
+        async Task RemoveSegment(SegmentMark mark)
+        {
+            using (var dialog = new ConfirmDialog("Remove “" + mark.Name + "”?", "Its record and its ghost are deleted too. This cannot be undone.", "Remove"))
+                if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+            var op = await Command("addons.removeSegment", new Dictionary<string, object> { { "addonId", "ghost" }, { "segmentId", mark.Id } }, null, "Removing the segment…",
+                code => code == "VALUE_NOT_ALLOWED" ? "Finish or leave this segment's attempt first." : null);
+            if (op != null) Done("Segment “" + mark.Name + "” removed.");
         }
 
         /// <summary>P17: sets GTA's own map waypoint; the game draws the GPS route on its minimap.</summary>

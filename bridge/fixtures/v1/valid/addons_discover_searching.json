@@ -1,0 +1,785 @@
+{
+  "addonsRevision": "addons-17a9b672415f",
+  "reasonCode": null,
+  "addons": [
+    {
+      "id": "alleycat",
+      "name": "Alleycat courier",
+      "category": "mission",
+      "summary": "Pick up and deliver fragile packages through Downtown Los Santos traffic against the clock.",
+      "description": "Random pickup and drop-off points in Downtown Los Santos, marked on the map with a GPS route; you choose your own line through traffic. Packages are fragile: hitting a car, a kerb or a wall, or falling, damages the one you carry, and at 0% it is lost. Heavy packages bring a storm and a headwind that GTBike V sends to your trainer as extra resistance; rain also lowers grip. The clock starts at the first pickup. Not available while a course is loaded; loading one ends the mission.",
+      "helpId": "addons.alleycat",
+      "state": "idle",
+      "enabled": false,
+      "startReasonCode": "ADDON_BUSY",
+      "configureReasonCode": null,
+      "parameters": [
+        {
+          "id": "packages",
+          "label": "Packages",
+          "description": "How many packages to pick up and deliver.",
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "unit": null,
+          "default": 5,
+          "liveEdit": false,
+          "value": 5,
+          "editable": true
+        },
+        {
+          "id": "timeLimitMin",
+          "label": "Time limit",
+          "description": "Total time, counted from the first pickup.",
+          "type": "integer",
+          "min": 5,
+          "max": 60,
+          "step": 1,
+          "unit": "min",
+          "default": 20,
+          "liveEdit": false,
+          "value": 20,
+          "editable": true
+        },
+        {
+          "id": "fragility",
+          "label": "Fragility",
+          "description": "How much damage a hit does to the package.",
+          "type": "enum",
+          "options": [
+            {
+              "id": "low",
+              "label": "Low"
+            },
+            {
+              "id": "normal",
+              "label": "Normal"
+            },
+            {
+              "id": "high",
+              "label": "High"
+            }
+          ],
+          "default": "normal",
+          "liveEdit": true,
+          "value": "normal",
+          "editable": true
+        },
+        {
+          "id": "heavyChancePct",
+          "label": "Heavy packages",
+          "description": "Chance that a package is heavy (storm and headwind while you carry it).",
+          "type": "integer",
+          "min": 0,
+          "max": 100,
+          "step": 10,
+          "unit": "%",
+          "default": 40,
+          "liveEdit": false,
+          "value": 40,
+          "editable": true
+        },
+        {
+          "id": "stormWhenHeavy",
+          "label": "Storm with heavy packages",
+          "description": "Thunderstorm in Downtown and rain elsewhere while a heavy package is carried. Rain lowers grip in GTBike V.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        },
+        {
+          "id": "headwindMps",
+          "label": "Headwind with heavy packages",
+          "description": "Wind speed set against the rider while a heavy package is carried; 0 turns it off. GTBike V sends it to the trainer as resistance.",
+          "type": "number",
+          "min": 0,
+          "max": 12,
+          "step": 0.5,
+          "unit": "m/s",
+          "default": 10,
+          "liveEdit": true,
+          "value": 10,
+          "editable": true
+        },
+        {
+          "id": "showHud",
+          "label": "On-screen status",
+          "description": "Package, integrity, time and distance as a subtitle in the game.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        }
+      ],
+      "segments": null,
+      "places": null,
+      "progress": null,
+      "run": null,
+      "result": null
+    },
+    {
+      "id": "survivalSprint",
+      "name": "Survival sprint",
+      "category": "training",
+      "summary": "Pass the target speed and a truck appears behind you. Hold the speed and keep pedalling or it runs you down.",
+      "description": "For threshold and high-intensity intervals, best on long roads such as the canals or the coast highway. Once you pass the target speed a chaser appears behind you. While you hold the target speed and keep pedalling it keeps its distance, and riding faster opens the gap a little. Below the target speed, for example on a climb, or coasting for longer than the grace time (GTBike V power and cadence near zero, even downhill at speed), it closes in fast. If it reaches you it rams you. Survive the set time to win. Works on a GTBike V course too.",
+      "helpId": "addons.survivalSprint",
+      "state": "idle",
+      "enabled": false,
+      "startReasonCode": "ADDON_BUSY",
+      "configureReasonCode": null,
+      "parameters": [
+        {
+          "id": "targetKmh",
+          "label": "Target speed",
+          "description": "Speed that starts the chase and that you must hold.",
+          "type": "integer",
+          "min": 15,
+          "max": 60,
+          "step": 1,
+          "unit": "km/h",
+          "default": 30,
+          "liveEdit": true,
+          "value": 30,
+          "editable": true
+        },
+        {
+          "id": "startGapM",
+          "label": "Start distance",
+          "description": "How far behind you the chaser appears.",
+          "type": "integer",
+          "min": 10,
+          "max": 80,
+          "step": 5,
+          "unit": "m",
+          "default": 30,
+          "liveEdit": false,
+          "value": 30,
+          "editable": true
+        },
+        {
+          "id": "closingKmh",
+          "label": "Closing speed",
+          "description": "How much faster than you (or than the target) the chaser drives while you are too slow or coasting.",
+          "type": "integer",
+          "min": 2,
+          "max": 30,
+          "step": 1,
+          "unit": "km/h",
+          "default": 12,
+          "liveEdit": true,
+          "value": 12,
+          "editable": true
+        },
+        {
+          "id": "coastGraceS",
+          "label": "Coasting allowed",
+          "description": "Seconds without pedalling before the chaser closes in.",
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "unit": "s",
+          "default": 3,
+          "liveEdit": true,
+          "value": 3,
+          "editable": true
+        },
+        {
+          "id": "minPowerW",
+          "label": "Pedalling threshold",
+          "description": "Power above this counts as pedalling (a cadence of 10 rpm or more also does). Without power or cadence data only the speed rule applies.",
+          "type": "integer",
+          "min": 0,
+          "max": 200,
+          "step": 5,
+          "unit": "W",
+          "default": 20,
+          "liveEdit": true,
+          "value": 20,
+          "editable": true
+        },
+        {
+          "id": "durationMin",
+          "label": "Survive for",
+          "description": "Length of the chase, counted from when the chaser appears.",
+          "type": "integer",
+          "min": 1,
+          "max": 60,
+          "step": 1,
+          "unit": "min",
+          "default": 10,
+          "liveEdit": false,
+          "value": 10,
+          "editable": true
+        },
+        {
+          "id": "chaser",
+          "label": "Chaser",
+          "description": "Vehicle behind you. The Phantom truck is used when the chosen one cannot be loaded.",
+          "type": "enum",
+          "options": [
+            {
+              "id": "phantomWedge",
+              "label": "Phantom Wedge"
+            },
+            {
+              "id": "police",
+              "label": "Police cruiser"
+            },
+            {
+              "id": "truck",
+              "label": "Phantom truck"
+            }
+          ],
+          "default": "phantomWedge",
+          "liveEdit": false,
+          "value": "phantomWedge",
+          "editable": true
+        },
+        {
+          "id": "ramOnCatch",
+          "label": "Ram when caught",
+          "description": "The chaser drives into you when it catches you. Off: the run simply ends.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        },
+        {
+          "id": "showHud",
+          "label": "On-screen status",
+          "description": "Time, distance bar, speed and a pedalling warning as a subtitle in the game.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        }
+      ],
+      "segments": null,
+      "places": null,
+      "progress": null,
+      "run": null,
+      "result": null
+    },
+    {
+      "id": "ghost",
+      "name": "Ghost segments",
+      "category": "training",
+      "summary": "Timed segments you mark on the map. Race a see-through ghost of your best attempt and beat your record.",
+      "description": "Mark segments on the PC window map (right-click: Ghost segment start here, then Ghost segment finish here; the same point twice makes a loop). With this add-on on, riding through a start circle starts the clock and a see-through ghost rider replays your best attempt (or your last one); the screen shows the live gap, green when you are ahead. The finish saves the attempt, and a faster one becomes the new record and the new ghost. Records keep the date, average power and speed. Teleporting cancels an attempt. Works on a GTBike V course too.",
+      "helpId": "addons.ghost",
+      "state": "idle",
+      "enabled": false,
+      "startReasonCode": "ADDON_BUSY",
+      "configureReasonCode": null,
+      "parameters": [
+        {
+          "id": "ghostSource",
+          "label": "Race against",
+          "description": "The ghost replays your best attempt or your last one.",
+          "type": "enum",
+          "options": [
+            {
+              "id": "best",
+              "label": "My best"
+            },
+            {
+              "id": "last",
+              "label": "My last"
+            }
+          ],
+          "default": "best",
+          "liveEdit": true,
+          "value": "best",
+          "editable": true
+        },
+        {
+          "id": "showGhost",
+          "label": "Show the ghost rider",
+          "description": "Off: only the live gap is shown.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        },
+        {
+          "id": "ghostOpacityPct",
+          "label": "Ghost opacity",
+          "description": "How visible the ghost rider is.",
+          "type": "integer",
+          "min": 20,
+          "max": 100,
+          "step": 10,
+          "unit": "%",
+          "default": 60,
+          "liveEdit": true,
+          "value": 60,
+          "editable": true
+        },
+        {
+          "id": "gateRadiusM",
+          "label": "Gate size",
+          "description": "Radius of the start and finish circles.",
+          "type": "integer",
+          "min": 8,
+          "max": 30,
+          "step": 1,
+          "unit": "m",
+          "default": 12,
+          "liveEdit": true,
+          "value": 12,
+          "editable": true
+        },
+        {
+          "id": "maxAttemptMin",
+          "label": "Give up after",
+          "description": "An attempt longer than this is cancelled.",
+          "type": "integer",
+          "min": 5,
+          "max": 120,
+          "step": 5,
+          "unit": "min",
+          "default": 60,
+          "liveEdit": true,
+          "value": 60,
+          "editable": true
+        },
+        {
+          "id": "showHud",
+          "label": "On-screen status",
+          "description": "Segment, time, gap to the ghost and distance to the finish as a subtitle in the game.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        }
+      ],
+      "segments": [],
+      "places": null,
+      "progress": null,
+      "run": null,
+      "result": null
+    },
+    {
+      "id": "discover",
+      "name": "Discover",
+      "category": "exploration",
+      "summary": "Find a hidden spot with only a hint: the zone and the distance, hot or cold. Every find earns XP.",
+      "description": "Each round hides a spot: one of your places saved on the PC window map (right-click: Save place here) or a random street spot around you. You only get the zone it is in and the straight-line distance, with hot or cold and closer or farther as you ride; optionally a yellow search circle on the game map that contains it, not centred on it. Reach it to find it. XP grows with the distance, finding it fast, a first visit to a place, a new zone and your daily streak; playing without the search circle earns more. Your XP, level, finds and history stay on this PC in the progress file. Free ride only.",
+      "helpId": "addons.discover",
+      "state": "running",
+      "enabled": true,
+      "startReasonCode": null,
+      "configureReasonCode": null,
+      "parameters": [
+        {
+          "id": "source",
+          "label": "Spots",
+          "description": "Your saved places, random street spots, or your places first and random ones when none is in range.",
+          "type": "enum",
+          "options": [
+            {
+              "id": "mixed",
+              "label": "My places, then random"
+            },
+            {
+              "id": "myPlaces",
+              "label": "Only my places"
+            },
+            {
+              "id": "random",
+              "label": "Only random spots"
+            }
+          ],
+          "default": "mixed",
+          "liveEdit": false,
+          "value": "mixed",
+          "editable": false
+        },
+        {
+          "id": "rounds",
+          "label": "Spots per run",
+          "description": "How many spots to find in one run.",
+          "type": "integer",
+          "min": 1,
+          "max": 20,
+          "step": 1,
+          "unit": null,
+          "default": 3,
+          "liveEdit": false,
+          "value": 3,
+          "editable": false
+        },
+        {
+          "id": "minDistanceKm",
+          "label": "Minimum distance",
+          "description": "Closest a spot may be when its round starts.",
+          "type": "number",
+          "min": 0.5,
+          "max": 10,
+          "step": 0.5,
+          "unit": "km",
+          "default": 1,
+          "liveEdit": false,
+          "value": 1,
+          "editable": false
+        },
+        {
+          "id": "maxDistanceKm",
+          "label": "Maximum distance",
+          "description": "Farthest a spot may be when its round starts.",
+          "type": "number",
+          "min": 1,
+          "max": 20,
+          "step": 0.5,
+          "unit": "km",
+          "default": 4,
+          "liveEdit": false,
+          "value": 4,
+          "editable": false
+        },
+        {
+          "id": "roundTimeMin",
+          "label": "Time per spot",
+          "description": "After this the spot is revealed and the next round starts.",
+          "type": "integer",
+          "min": 5,
+          "max": 90,
+          "step": 5,
+          "unit": "min",
+          "default": 30,
+          "liveEdit": false,
+          "value": 30,
+          "editable": false
+        },
+        {
+          "id": "searchAreaM",
+          "label": "Search circle",
+          "description": "Radius of the yellow circle on the game map that contains the spot; 0 hides it and earns 25% more XP.",
+          "type": "integer",
+          "min": 0,
+          "max": 1000,
+          "step": 50,
+          "unit": "m",
+          "default": 300,
+          "liveEdit": true,
+          "value": 300,
+          "editable": true
+        },
+        {
+          "id": "discoverRadiusM",
+          "label": "Find radius",
+          "description": "How close you must get to find the spot.",
+          "type": "integer",
+          "min": 10,
+          "max": 60,
+          "step": 5,
+          "unit": "m",
+          "default": 25,
+          "liveEdit": true,
+          "value": 25,
+          "editable": true
+        },
+        {
+          "id": "showHud",
+          "label": "On-screen status",
+          "description": "Hint zone, distance, hot or cold, time left and level as a subtitle in the game.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        }
+      ],
+      "segments": null,
+      "places": [
+        {
+          "id": "pl-0a1b2c3d",
+          "name": "Chiliad summit",
+          "point": {
+            "x": 501.3,
+            "y": 5604.5
+          },
+          "found": 1,
+          "bestTimeS": 1802.4,
+          "lastFoundAtUtc": "2026-11-06T17:30:00.000Z"
+        }
+      ],
+      "progress": {
+        "xp": 1240,
+        "level": 3,
+        "levelName": "Explorer",
+        "xpToNextLevel": 1010,
+        "levelProgressPct": 19,
+        "stats": [
+          {
+            "id": "discoveries",
+            "label": "Spots found",
+            "value": 7,
+            "unit": null
+          },
+          {
+            "id": "placesFound",
+            "label": "My places found",
+            "value": 2,
+            "unit": null
+          },
+          {
+            "id": "zonesFound",
+            "label": "Zones found",
+            "value": 5,
+            "unit": null
+          },
+          {
+            "id": "streakDays",
+            "label": "Daily streak",
+            "value": 2,
+            "unit": "days"
+          },
+          {
+            "id": "bestStreakDays",
+            "label": "Best streak",
+            "value": 4,
+            "unit": "days"
+          },
+          {
+            "id": "missed",
+            "label": "Missed",
+            "value": 1,
+            "unit": null
+          },
+          {
+            "id": "routesCompleted",
+            "label": "Routes completed",
+            "value": 2,
+            "unit": null
+          },
+          {
+            "id": "routeCompletions",
+            "label": "Route finishes and laps",
+            "value": 3,
+            "unit": null
+          },
+          {
+            "id": "totalDistanceKm",
+            "label": "Distance with XP",
+            "value": 18.4,
+            "unit": "km"
+          }
+        ],
+        "recent": [
+          {
+            "kind": "route",
+            "atUtc": "2026-11-07T20:00:00.000Z",
+            "label": "Coastal Loop",
+            "zone": null,
+            "timeS": 3122.4,
+            "distanceM": 24300,
+            "xp": 1758
+          },
+          {
+            "kind": "discover",
+            "atUtc": "2026-11-07T19:00:00.000Z",
+            "label": "A spot in Mirror Park",
+            "zone": "Mirror Park",
+            "timeS": 412.3,
+            "distanceM": 2300,
+            "xp": 262
+          }
+        ],
+        "lastFind": {
+          "kind": "discover",
+          "atUtc": "2026-11-07T19:00:00.000Z",
+          "label": "A spot in Mirror Park",
+          "zone": "Mirror Park",
+          "timeS": 412.3,
+          "distanceM": 2300,
+          "xp": 262,
+          "stats": [
+            {
+              "id": "baseXp",
+              "label": "Distance",
+              "value": 192,
+              "unit": "XP"
+            },
+            {
+              "id": "speedBonusXp",
+              "label": "Speed bonus",
+              "value": 30,
+              "unit": "XP"
+            },
+            {
+              "id": "noHintBonusXp",
+              "label": "No circle bonus",
+              "value": 0,
+              "unit": "XP"
+            },
+            {
+              "id": "firstTimeBonusXp",
+              "label": "First visit",
+              "value": 0,
+              "unit": "XP"
+            },
+            {
+              "id": "newZoneBonusXp",
+              "label": "New zone",
+              "value": 50,
+              "unit": "XP"
+            },
+            {
+              "id": "streakDays",
+              "label": "Streak",
+              "value": 2,
+              "unit": "days"
+            }
+          ]
+        },
+        "lastRoute": {
+          "kind": "route",
+          "atUtc": "2026-11-07T20:00:00.000Z",
+          "label": "Coastal Loop",
+          "zone": null,
+          "timeS": 3122.4,
+          "distanceM": 24300,
+          "xp": 1758,
+          "stats": [
+            {
+              "id": "baseXp",
+              "label": "Distance",
+              "value": 1558,
+              "unit": "XP"
+            },
+            {
+              "id": "firstTimeBonusXp",
+              "label": "First time",
+              "value": 0,
+              "unit": "XP"
+            },
+            {
+              "id": "personalBestBonusXp",
+              "label": "Personal best",
+              "value": 100,
+              "unit": "XP"
+            },
+            {
+              "id": "avgPowerW",
+              "label": "Average power",
+              "value": 212,
+              "unit": "W"
+            },
+            {
+              "id": "streakDays",
+              "label": "Streak",
+              "value": 2,
+              "unit": "days"
+            }
+          ]
+        },
+        "routes": [
+          {
+            "routeId": "35",
+            "name": "Coastal Loop",
+            "completions": 2,
+            "laps": 0,
+            "bestTimeS": 3122.4,
+            "bestAvgPowerW": 212,
+            "bestAvgSpeedKmh": 28,
+            "distanceM": 24300,
+            "firstAtUtc": "2026-11-05T18:00:00.000Z",
+            "lastAtUtc": "2026-11-07T20:00:00.000Z"
+          },
+          {
+            "routeId": "36",
+            "name": "Hill Climb",
+            "completions": 1,
+            "laps": 0,
+            "bestTimeS": 1500.2,
+            "bestAvgPowerW": 250,
+            "bestAvgSpeedKmh": 19.4,
+            "distanceM": 8100,
+            "firstAtUtc": "2026-11-06T18:00:00.000Z",
+            "lastAtUtc": "2026-11-06T18:00:00.000Z"
+          }
+        ]
+      },
+      "run": {
+        "phase": "searching",
+        "elapsedS": 211,
+        "timeLeftS": 1589,
+        "stats": [
+          {
+            "id": "round",
+            "label": "Spot",
+            "value": 2,
+            "unit": null
+          },
+          {
+            "id": "rounds",
+            "label": "Spots",
+            "value": 3,
+            "unit": null
+          },
+          {
+            "id": "hintZone",
+            "label": "Hint",
+            "value": "Vinewood Hills",
+            "unit": null
+          },
+          {
+            "id": "distanceM",
+            "label": "Distance",
+            "value": 1840,
+            "unit": "m"
+          },
+          {
+            "id": "heat",
+            "label": "Heat",
+            "value": "warm",
+            "unit": null
+          },
+          {
+            "id": "trend",
+            "label": "Trend",
+            "value": "closer",
+            "unit": null
+          },
+          {
+            "id": "spotKind",
+            "label": "Spot kind",
+            "value": "my place",
+            "unit": null
+          },
+          {
+            "id": "found",
+            "label": "Found",
+            "value": 1,
+            "unit": null
+          },
+          {
+            "id": "missed",
+            "label": "Missed",
+            "value": 0,
+            "unit": null
+          },
+          {
+            "id": "xp",
+            "label": "XP this run",
+            "value": 262,
+            "unit": null
+          }
+        ],
+        "nextPoint": null
+      },
+      "result": null
+    }
+  ]
+}

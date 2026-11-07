@@ -787,6 +787,226 @@
       "set": {
         "/args/x": 1
       }
+    },
+    {
+      "file": "valid/addons_running.json",
+      "schema": "addons",
+      "valid": true
+    },
+    {
+      "file": "valid/addons_finished.json",
+      "schema": "addons",
+      "valid": true
+    },
+    {
+      "file": "valid/addons_adapter_absent.json",
+      "schema": "addons",
+      "valid": true
+    },
+    {
+      "file": "valid/command_addons_start.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_addons_stop.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_addons_configure.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "derived": "command_addons_start_without_revision",
+      "base": "valid/command_addons_start.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/expectedRevision": null
+      }
+    },
+    {
+      "derived": "command_addons_stop_with_revision",
+      "base": "valid/command_addons_stop.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/expectedRevision": "addons-0123456789ab"
+      }
+    },
+    {
+      "derived": "command_addons_configure_empty",
+      "base": "valid/command_addons_configure.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/params": {}
+      }
+    },
+    {
+      "derived": "command_addons_configure_object_value",
+      "base": "valid/command_addons_configure.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/params/packages": {
+          "n": 3
+        }
+      }
+    },
+    {
+      "derived": "command_addons_bad_id",
+      "base": "valid/command_addons_stop.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/addonId": "Alley Cat"
+      }
+    },
+    {
+      "derived": "addons_unknown_state",
+      "base": "valid/addons_running.json",
+      "schema": "addons",
+      "valid": false,
+      "set": {
+        "/addons/0/state": "paused"
+      }
+    },
+    {
+      "derived": "addons_extra_field",
+      "base": "valid/addons_running.json",
+      "schema": "addons",
+      "valid": false,
+      "set": {
+        "/addons/0/script": "x"
+      }
+    },
+    {
+      "derived": "addons_number_param_without_range",
+      "base": "valid/addons_running.json",
+      "schema": "addons",
+      "valid": false,
+      "remove": [
+        "/addons/0/parameters/0/max"
+      ]
+    },
+    {
+      "file": "valid/addons_sprint_chased.json",
+      "schema": "addons",
+      "valid": true
+    },
+    {
+      "derived": "addons_sprint_unknown_phase",
+      "base": "valid/addons_sprint_chased.json",
+      "schema": "addons",
+      "valid": false,
+      "set": {
+        "/addons/1/run/phase": "escaping"
+      }
+    },
+    {
+      "file": "valid/addons_ghost_on_segment.json",
+      "schema": "addons",
+      "valid": true
+    },
+    {
+      "file": "valid/command_addons_save_segment.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "file": "valid/command_addons_remove_segment.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "derived": "command_addons_save_segment_revision",
+      "base": "valid/command_addons_save_segment.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/expectedRevision": "addons-0123456789ab"
+      }
+    },
+    {
+      "derived": "command_addons_save_segment_long_name",
+      "base": "valid/command_addons_save_segment.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "derived": "command_addons_save_segment_off_map",
+      "base": "valid/command_addons_save_segment.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/finish/y": 12000
+      }
+    },
+    {
+      "derived": "command_addons_remove_segment_bad_id",
+      "base": "valid/command_addons_remove_segment.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/segmentId": "seg-ZZ"
+      }
+    },
+    {
+      "derived": "addons_ghost_segment_extra",
+      "base": "valid/addons_ghost_on_segment.json",
+      "schema": "addons",
+      "valid": false,
+      "set": {
+        "/addons/2/segments/0/trace": []
+      }
+    },
+    {
+      "file": "valid/progress.json",
+      "schema": "progress",
+      "valid": true
+    },
+    {
+      "file": "valid/addons_discover_searching.json",
+      "schema": "addons",
+      "valid": true
+    },
+    {
+      "file": "valid/command_addons_save_place.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "derived": "progress_route_bad_id",
+      "base": "valid/progress.json",
+      "schema": "progress",
+      "valid": false,
+      "set": {
+        "/progress/routes/0/routeId": "coastal"
+      }
+    },
+    {
+      "derived": "progress_find_bad_kind",
+      "base": "valid/progress.json",
+      "schema": "progress",
+      "valid": false,
+      "set": {
+        "/progress/recent/0/kind": "race"
+      }
+    },
+    {
+      "derived": "command_addons_save_place_revision",
+      "base": "valid/command_addons_save_place.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/expectedRevision": "addons-0123456789ab"
+      }
     }
   ]
 }

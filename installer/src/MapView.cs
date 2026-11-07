@@ -50,6 +50,23 @@ namespace GTAVRidingCompanion
         public double WorldY(double py) { return (py - OffsetY) / ScaleY; }
     }
 
+    /// <summary>P18: one saved Discover place as the map draws it.</summary>
+    sealed class PlaceMark
+    {
+        public string Id, Name;
+        public double X, Y;
+        public int Found;
+    }
+
+    /// <summary>P18: one ghost segment as the map draws it.</summary>
+    sealed class SegmentMark
+    {
+        public string Id, Name;
+        public double StartX, StartY, FinishX, FinishY;
+        public double? BestTimeS;
+        public bool Loop;
+    }
+
     sealed class MapView : Control
     {
         const float MaxZoom = 4f;
@@ -62,7 +79,26 @@ namespace GTAVRidingCompanion
         readonly ToolStripMenuItem routeItem = new ToolStripMenuItem("Route here (GPS)");
         readonly ToolStripMenuItem clearRouteItem = new ToolStripMenuItem("Clear destination");
         readonly ToolStripSeparator teleportSeparator = new ToolStripSeparator();
+        readonly ToolStripMenuItem movePointItem = new ToolStripMenuItem("Move selected point here");
+        readonly ToolStripMenuItem addPointItem = new ToolStripMenuItem("Add waypoint here");
+        // P18 ghost segments.
+        readonly ToolStripMenuItem segmentStartItem = new ToolStripMenuItem("Ghost segment: start here");
+        readonly ToolStripMenuItem segmentFinishItem = new ToolStripMenuItem("Ghost segment: finish here");
+        readonly ToolStripMenuItem segmentCancelItem = new ToolStripMenuItem("Cancel the new segment");
+        readonly ToolStripMenuItem segmentRenameItem = new ToolStripMenuItem("Rename segment");
+        readonly ToolStripMenuItem segmentRemoveItem = new ToolStripMenuItem("Remove segment");
+        readonly ToolStripSeparator segmentSeparator = new ToolStripSeparator();
+        // P18 discover: saved places.
+        readonly ToolStripMenuItem placeSaveItem = new ToolStripMenuItem("Discover: save place here");
+        readonly ToolStripMenuItem placeRenameItem = new ToolStripMenuItem("Rename place");
+        readonly ToolStripMenuItem placeRemoveItem = new ToolStripMenuItem("Remove place");
+        List<PlaceMark> places = new List<PlaceMark>();
+        PlaceMark menuPlace;
+        List<SegmentMark> segments = new List<SegmentMark>();
+        PointF? pendingStart;     // image coordinates of a new segment's start
+        SegmentMark menuSegment;  // segment under the right-click
         Image full;
+        float fullScale = 1f;
         readonly List<KeyValuePair<float, Bitmap>> levels = new List<KeyValuePair<float, Bitmap>>(); // scale -> copy
         int imageWidth, imageHeight;
         float zoom = 0.1f, centerX, centerY;
@@ -77,6 +113,11 @@ namespace GTAVRidingCompanion
         PointF? target;          // image coordinates of a teleport in progress
         PointF? destination;     // image coordinates of the game's map waypoint
         string destinationText;  // "2.4 km by road" or null
+        bool fitRoutePending;
+        bool routeClosed, addingRoutePoints, pointDragMoved;
+        int pointDragIndex = -1;
+        Point pointDragMouse;
+        PointF pointDragOrigin;
 
         public event Action FollowChanged;
         /// <summary>World X/Y (metres) the user chose with "Teleport here".</summary>
@@ -95,6 +136,35 @@ namespace GTAVRidingCompanion
         public bool HasDestination { get { return destination.HasValue; } }
         public bool Follow { get; private set; }
         public string Overlay { get; set; }
+        public bool ShowRouteEndpoints { get; set; }
+        public bool EditPoints { get; set; }
+        public int SelectedRoutePoint { get; set; }
+        /// <summary>Click empty map space to place the start and successive waypoints; dragging still pans.</summary>
+        public bool AddRoutePoints
+        {
+            get { return addingRoutePoints; }
+            set { addingRoutePoints = value; Cursor = value ? Cursors.Cross : Cursors.Hand; Invalidate(); }
+        }
+        /// <summary>Index 0 is the start, followed by the actual waypoints (no duplicate loop endpoint).</summary>
+        public event Action<int> RoutePointSelected;
+        /// <summary>Committed once on mouse release, in GTA world metres. Mouse moves only update the preview.</summary>
+        public event Action<int, double, double> RoutePointMoved;
+        public event Action<double, double> RoutePointAdded;
+        /// <summary>World X/Y, and true to append a waypoint (context-menu alternative to dragging).</summary>
+        public event Action<double, double, bool> EditPointRequested;
+        /// <summary>P18: false hides the segment items (bridge older than ghost segments).</summary>
+        public bool SegmentsVisible { get; set; }
+        /// <summary>Why segments cannot be changed right now; null when they can.</summary>
+        public string SegmentBlock { get; set; }
+        /// <summary>Start X/Y and finish X/Y (GTA metres) of a new segment.</summary>
+        public event Action<double, double, double, double> SegmentCreateRequested;
+        public event Action<SegmentMark> SegmentRenameRequested;
+        public event Action<SegmentMark> SegmentRemoveRequested;
+        /// <summary>P18: false hides the place items (bridge older than Discover).</summary>
+        public bool PlacesVisible { get; set; }
+        public event Action<double, double> PlaceSaveRequested;
+        public event Action<PlaceMark> PlaceRenameRequested;
+        public event Action<PlaceMark> PlaceRemoveRequested;
 
         public MapView(MapCalibration calibration)
         {
@@ -103,6 +173,7 @@ namespace GTAVRidingCompanion
             BackColor = Ocean;
             Cursor = Cursors.Hand;
             Follow = true;
+            SelectedRoutePoint = -1;
             copyItem.Click += (s, e) =>
             {
                 try { Clipboard.SetText(String.Format(CultureInfo.InvariantCulture, "{0:0.0}, {1:0.0}", calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y))); }
@@ -118,19 +189,59 @@ namespace GTAVRidingCompanion
                 if (RouteRequested != null) RouteRequested(calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y));
             };
             clearRouteItem.Click += (s, e) => { if (ClearRouteRequested != null) ClearRouteRequested(); };
-            menu.Items.AddRange(new ToolStripItem[] { teleportItem, routeItem, clearRouteItem, teleportSeparator, centerItem, copyItem });
+            movePointItem.Click += (s, e) => PickPoint(false);
+            addPointItem.Click += (s, e) => PickPoint(true);
+            segmentStartItem.Click += (s, e) => { pendingStart = menuImagePoint; Invalidate(); };
+            segmentFinishItem.Click += (s, e) =>
+            {
+                if (!pendingStart.HasValue) return;
+                PointF start = pendingStart.Value;
+                pendingStart = null;
+                Invalidate();
+                if (SegmentCreateRequested != null)
+                    SegmentCreateRequested(calibration.WorldX(start.X), calibration.WorldY(start.Y), calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y));
+            };
+            segmentCancelItem.Click += (s, e) => { pendingStart = null; Invalidate(); };
+            segmentRenameItem.Click += (s, e) => { if (menuSegment != null && SegmentRenameRequested != null) SegmentRenameRequested(menuSegment); };
+            segmentRemoveItem.Click += (s, e) => { if (menuSegment != null && SegmentRemoveRequested != null) SegmentRemoveRequested(menuSegment); };
+            placeSaveItem.Click += (s, e) => { if (PlaceSaveRequested != null) PlaceSaveRequested(calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y)); };
+            placeRenameItem.Click += (s, e) => { if (menuPlace != null && PlaceRenameRequested != null) PlaceRenameRequested(menuPlace); };
+            placeRemoveItem.Click += (s, e) => { if (menuPlace != null && PlaceRemoveRequested != null) PlaceRemoveRequested(menuPlace); };
+            menu.Items.AddRange(new ToolStripItem[] { movePointItem, addPointItem, teleportItem, routeItem, clearRouteItem, teleportSeparator,
+                segmentStartItem, segmentFinishItem, segmentCancelItem, segmentRenameItem, segmentRemoveItem, placeSaveItem, placeRenameItem, placeRemoveItem, segmentSeparator, centerItem, copyItem });
+        }
+
+        void PickPoint(bool append)
+        {
+            if (EditPointRequested != null) EditPointRequested(calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y), append);
         }
 
         /// <summary>Loads the image and builds the downscaled copies off the UI thread.</summary>
-        public void LoadImage(string path)
+        public void LoadImage(string path) { LoadImage(path, 0); }
+
+        // Previews use a smaller bitmap but retain coordinates in the original calibrated image.
+        public void LoadImage(string path, int maxDimension)
         {
             Task.Run(() =>
             {
+                Image image = null;
+                var built = new List<KeyValuePair<float, Bitmap>>();
                 try
                 {
-                    var bytes = File.ReadAllBytes(path);
-                    Image image = Image.FromStream(new MemoryStream(bytes)); // GDI+ keeps reading the stream: never dispose it.
-                    var built = new List<KeyValuePair<float, Bitmap>>();
+                    int originalWidth, originalHeight;
+                    float baseScale;
+                    using (var stream = File.OpenRead(path))
+                    using (var original = Image.FromStream(stream))
+                    {
+                        originalWidth = original.Width; originalHeight = original.Height;
+                        baseScale = maxDimension > 0 ? Math.Min(1f, maxDimension / (float)Math.Max(originalWidth, originalHeight)) : 1f;
+                        image = new Bitmap(Math.Max(1, (int)(originalWidth * baseScale)), Math.Max(1, (int)(originalHeight * baseScale)), PixelFormat.Format32bppPArgb);
+                        using (var g = Graphics.FromImage(image))
+                        {
+                            g.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                            g.DrawImage(original, new Rectangle(0, 0, image.Width, image.Height));
+                        }
+                    }
                     Image source = image;
                     for (float scale = 0.5f; scale >= 0.06f; scale /= 2)
                     {
@@ -141,21 +252,28 @@ namespace GTAVRidingCompanion
                             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                             g.DrawImage(source, new Rectangle(0, 0, copy.Width, copy.Height));
                         }
-                        built.Add(new KeyValuePair<float, Bitmap>(scale, copy));
+                        built.Add(new KeyValuePair<float, Bitmap>(baseScale * scale, copy));
                         source = copy;
                     }
                     BeginInvoke(new Action(() =>
                     {
+                        if (IsDisposed) { image.Dispose(); foreach (var level in built) level.Value.Dispose(); return; }
+                        if (full != null) full.Dispose();
+                        foreach (var level in levels) level.Value.Dispose();
                         full = image;
-                        imageWidth = image.Width;
-                        imageHeight = image.Height;
+                        fullScale = baseScale;
+                        imageWidth = originalWidth;
+                        imageHeight = originalHeight;
+                        loadError = null;
                         levels.Clear();
                         levels.AddRange(built);
-                        FitAll();
+                        if (fitRoutePending && route.Count > 0) FitRoute(); else FitAll();
                     }));
                 }
                 catch (Exception error)
                 {
+                    if (image != null) image.Dispose();
+                    foreach (var level in built) level.Value.Dispose();
                     try { BeginInvoke(new Action(() => { loadError = "The map image could not be loaded: " + error.Message; Invalidate(); })); }
                     catch (InvalidOperationException) { }
                 }
@@ -175,10 +293,28 @@ namespace GTAVRidingCompanion
             Invalidate();
         }
 
-        public void SetRoute(IEnumerable<KeyValuePair<double, double>> points)
+        public void SetRoute(IEnumerable<KeyValuePair<double, double>> points) { SetRoute(points, false); }
+
+        public void SetRoute(IEnumerable<KeyValuePair<double, double>> points, bool closeLoop)
         {
+            CancelPointDrag();
+            routeClosed = closeLoop;
             route = new List<PointF>();
             if (points != null) foreach (var p in points) route.Add(calibration.ToImage(p.Key, p.Value));
+            Invalidate();
+        }
+
+        public void FitRoute()
+        {
+            fitRoutePending = true;
+            if (full == null || route.Count == 0 || Width < 1 || Height < 1) return;
+            SetFollow(false);
+            float left = Single.MaxValue, right = Single.MinValue, top = Single.MaxValue, bottom = Single.MinValue;
+            foreach (var p in route) { left = Math.Min(left, p.X); right = Math.Max(right, p.X); top = Math.Min(top, p.Y); bottom = Math.Max(bottom, p.Y); }
+            centerX = (left + right) / 2f; centerY = (top + bottom) / 2f;
+            zoom = Math.Max(MinZoom, Math.Min(MaxZoom, Math.Min(Math.Max(1, Width - 80) / Math.Max(60f, right - left), Math.Max(1, Height - 80) / Math.Max(60f, bottom - top))));
+            viewSet = true;
+            fitRoutePending = false;
             Invalidate();
         }
 
@@ -201,6 +337,20 @@ namespace GTAVRidingCompanion
         }
 
         /// <summary>Marks where a teleport is going (null clears it).</summary>
+        /// <summary>P18: the saved ghost segments to draw (start, finish, name, best time).</summary>
+        public void SetSegments(IEnumerable<SegmentMark> marks)
+        {
+            segments = new List<SegmentMark>(marks);
+            Invalidate();
+        }
+
+        /// <summary>P18: the saved Discover places to draw.</summary>
+        public void SetPlaces(IEnumerable<PlaceMark> marks)
+        {
+            places = new List<PlaceMark>(marks);
+            Invalidate();
+        }
+
         public void SetTarget(double? x, double? y)
         {
             target = x.HasValue && y.HasValue ? (PointF?)calibration.ToImage(x.Value, y.Value) : null;
@@ -225,6 +375,7 @@ namespace GTAVRidingCompanion
             centerX = imageWidth / 2f;
             centerY = imageHeight / 2f;
             viewSet = false;
+            fitRoutePending = false;
             Invalidate();
         }
 
@@ -270,15 +421,95 @@ namespace GTAVRidingCompanion
         {
             base.OnMouseDown(e);
             Focus();
-            if (e.Button == MouseButtons.Left) { dragging = true; moved = false; dragStart = lastMouse = e.Location; Cursor = Cursors.SizeAll; }
+            if (e.Button != MouseButtons.Left || full == null) return;
+            if (EditPoints && !AddRoutePoints)
+            {
+                int index = HitRoutePoint(e.Location);
+                if (index >= 0)
+                {
+                    SelectedRoutePoint = index;
+                    if (RoutePointSelected != null) RoutePointSelected(index);
+                    pointDragIndex = index;
+                    pointDragOrigin = route[index];
+                    pointDragMouse = e.Location;
+                    pointDragMoved = false;
+                    fitRoutePending = false;
+                    if (IsHandleCreated) Capture = true;
+                    Cursor = Cursors.SizeAll;
+                    Invalidate();
+                    return;
+                }
+            }
+            dragging = true; moved = false; dragStart = lastMouse = e.Location;
+            if (IsHandleCreated) Capture = true;
+            Cursor = AddRoutePoints ? Cursors.Cross : Cursors.SizeAll;
+        }
+
+        // Prefer a nearby marker; otherwise select the closest endpoint of the segment under the cursor.
+        int HitRoutePoint(Point screen)
+        {
+            int nearest = -1;
+            double best = 14 * 14;
+            for (int i = 0; i < route.Count; i++)
+            {
+                double distance = DistanceSquared(screen, ToScreen(route[i]));
+                if (distance < best) { best = distance; nearest = i; }
+            }
+            if (nearest >= 0) return nearest;
+            best = 10 * 10;
+            int edges = routeClosed && route.Count > 1 ? route.Count : route.Count - 1;
+            for (int i = 0; i < edges; i++)
+            {
+                int next = (i + 1) % route.Count;
+                PointF a = ToScreen(route[i]), b = ToScreen(route[next]);
+                double dx = b.X - a.X, dy = b.Y - a.Y, length = dx * dx + dy * dy;
+                double t = length == 0 ? 0 : Math.Max(0, Math.Min(1, ((screen.X - a.X) * dx + (screen.Y - a.Y) * dy) / length));
+                var foot = new PointF((float)(a.X + t * dx), (float)(a.Y + t * dy));
+                double distance = DistanceSquared(screen, foot);
+                if (distance < best) { best = distance; nearest = DistanceSquared(screen, a) <= DistanceSquared(screen, b) ? i : next; }
+            }
+            return nearest;
+        }
+
+        static double DistanceSquared(PointF a, PointF b)
+        {
+            double dx = a.X - b.X, dy = a.Y - b.Y;
+            return dx * dx + dy * dy;
+        }
+
+        void CancelPointDrag()
+        {
+            if (pointDragIndex < 0) return;
+            if (pointDragIndex < route.Count) route[pointDragIndex] = pointDragOrigin;
+            pointDragIndex = -1; pointDragMoved = false;
+            if (IsHandleCreated) Capture = false;
+            Cursor = AddRoutePoints ? Cursors.Cross : Cursors.Hand;
+            Invalidate();
+        }
+
+        void PreviewPointDrag(Point screen)
+        {
+            if (!pointDragMoved && Math.Abs(screen.X - pointDragMouse.X) + Math.Abs(screen.Y - pointDragMouse.Y) < 4) return;
+            pointDragMoved = true;
+            // Relative movement prevents a waypoint from jumping when its segment was clicked farther away.
+            route[pointDragIndex] = new PointF(
+                Math.Max(0, Math.Min(imageWidth - 1, pointDragOrigin.X + (screen.X - pointDragMouse.X) / zoom)),
+                Math.Max(0, Math.Min(imageHeight - 1, pointDragOrigin.Y + (screen.Y - pointDragMouse.Y) / zoom)));
+            Invalidate();
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            if (!dragging) return;
+            if (pointDragIndex >= 0) { PreviewPointDrag(e.Location); return; }
+            if (!dragging)
+            {
+                Cursor = AddRoutePoints ? Cursors.Cross : EditPoints && HitRoutePoint(e.Location) >= 0 ? Cursors.SizeAll : Cursors.Hand;
+                return;
+            }
             if (!moved && Math.Abs(e.X - dragStart.X) + Math.Abs(e.Y - dragStart.Y) < 4) return;
-            if (!moved) { moved = true; SetFollow(false); }
+            if (!moved) { moved = true; SetFollow(false); Cursor = Cursors.SizeAll; }
+            fitRoutePending = false;
             centerX -= (e.X - lastMouse.X) / zoom;
             centerY -= (e.Y - lastMouse.Y) / zoom;
             lastMouse = e.Location;
@@ -289,13 +520,43 @@ namespace GTAVRidingCompanion
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
-            if (e.Button == MouseButtons.Left) { dragging = false; Cursor = Cursors.Hand; Invalidate(); }
+            if (e.Button == MouseButtons.Left)
+            {
+                if (pointDragIndex >= 0)
+                {
+                    PreviewPointDrag(e.Location);
+                    int index = pointDragIndex;
+                    PointF position = route[index];
+                    bool commit = pointDragMoved && position != pointDragOrigin;
+                    pointDragIndex = -1; pointDragMoved = false;
+                    if (IsHandleCreated) Capture = false;
+                    Cursor = Cursors.SizeAll;
+                    Invalidate();
+                    if (commit && RoutePointMoved != null) RoutePointMoved(index, calibration.WorldX(position.X), calibration.WorldY(position.Y));
+                    return;
+                }
+                bool place = dragging && !moved && EditPoints && AddRoutePoints && e.Clicks == 1;
+                dragging = false;
+                if (IsHandleCreated) Capture = false;
+                Cursor = AddRoutePoints ? Cursors.Cross : Cursors.Hand;
+                Invalidate();
+                if (place)
+                {
+                    PointF p = ToImage(e.Location);
+                    if (p.X >= 0 && p.Y >= 0 && p.X < imageWidth && p.Y < imageHeight && RoutePointAdded != null)
+                        RoutePointAdded(calibration.WorldX(p.X), calibration.WorldY(p.Y));
+                }
+            }
             if (e.Button == MouseButtons.Right && full != null)
             {
                 menuImagePoint = ToImage(e.Location);
                 copyItem.Text = String.Format(CultureInfo.InvariantCulture, "Copy coordinates  ({0:0}, {1:0})", calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y));
                 centerItem.Enabled = rider.HasValue;
+                centerItem.Visible = !ShowRouteEndpoints;
                 bool insideMap = menuImagePoint.X >= 0 && menuImagePoint.Y >= 0 && menuImagePoint.X <= imageWidth && menuImagePoint.Y <= imageHeight;
+                movePointItem.Visible = addPointItem.Visible = EditPoints;
+                movePointItem.Enabled = insideMap && SelectedRoutePoint >= 0;
+                addPointItem.Enabled = insideMap;
                 string block = !insideMap ? "outside the map" : TeleportBlock;
                 teleportItem.Visible = TeleportVisible;
                 teleportSeparator.Visible = TeleportVisible || DestinationVisible;
@@ -307,6 +568,29 @@ namespace GTAVRidingCompanion
                 routeItem.Text = routeBlock == null ? (destination.HasValue ? "Route here instead (GPS)" : "Route here (GPS)") : "Route here (" + routeBlock + ")";
                 clearRouteItem.Visible = DestinationVisible && destination.HasValue;
                 clearRouteItem.Enabled = DestinationBlock == null;
+                // P18 ghost segments: start, then finish (the same point twice is a loop); rename/remove the one under the cursor.
+                menuSegment = SegmentAt(e.Location);
+                bool segmentsOn = SegmentsVisible && !ShowRouteEndpoints && !EditPoints;
+                string segmentBlock = !insideMap ? "outside the map" : SegmentBlock;
+                segmentStartItem.Visible = segmentsOn;
+                segmentStartItem.Enabled = segmentBlock == null;
+                segmentStartItem.Text = segmentBlock != null ? "Ghost segment (" + segmentBlock + ")" : pendingStart.HasValue ? "Ghost segment: move the start here" : "Ghost segment: start here";
+                segmentFinishItem.Visible = segmentCancelItem.Visible = segmentsOn && pendingStart.HasValue;
+                segmentFinishItem.Enabled = segmentBlock == null;
+                bool hit = segmentsOn && menuSegment != null;
+                segmentRenameItem.Visible = segmentRemoveItem.Visible = hit;
+                segmentRenameItem.Enabled = segmentRemoveItem.Enabled = SegmentBlock == null;
+                if (hit) { segmentRenameItem.Text = "Rename “" + menuSegment.Name + "”…"; segmentRemoveItem.Text = "Remove “" + menuSegment.Name + "”…"; }
+                // P18 discover places (same block as segments: both need fresh game data).
+                bool placesOn = PlacesVisible && !ShowRouteEndpoints && !EditPoints;
+                menuPlace = placesOn ? PlaceAt(e.Location) : null;
+                placeSaveItem.Visible = placesOn;
+                placeSaveItem.Enabled = segmentBlock == null;
+                placeSaveItem.Text = segmentBlock == null ? "Discover: save place here" : "Discover: save place (" + segmentBlock + ")";
+                placeRenameItem.Visible = placeRemoveItem.Visible = menuPlace != null;
+                placeRenameItem.Enabled = placeRemoveItem.Enabled = SegmentBlock == null;
+                if (menuPlace != null) { placeRenameItem.Text = "Rename place “" + menuPlace.Name + "”…"; placeRemoveItem.Text = "Remove place “" + menuPlace.Name + "”…"; }
+                segmentSeparator.Visible = segmentsOn || placesOn;
                 menu.Show(this, e.Location);
             }
         }
@@ -314,15 +598,36 @@ namespace GTAVRidingCompanion
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
             base.OnMouseDoubleClick(e);
-            if (e.Button != MouseButtons.Left) return;
+            if (e.Button != MouseButtons.Left || EditPoints) return;
             SetFollow(false);
             ZoomAt(e.Location, 2f);
+        }
+
+        protected override void OnMouseCaptureChanged(EventArgs e)
+        {
+            base.OnMouseCaptureChanged(e);
+            if (!Capture) { CancelPointDrag(); dragging = false; }
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape && pointDragIndex >= 0)
+            {
+                CancelPointDrag(); e.Handled = e.SuppressKeyPress = true; return;
+            }
+            base.OnKeyDown(e);
+        }
+
+        protected override bool IsInputKey(Keys keyData)
+        {
+            return ((keyData & Keys.KeyCode) == Keys.Escape && pointDragIndex >= 0) || base.IsInputKey(keyData);
         }
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
             if (full != null && zoom < MinZoom) zoom = MinZoom;
+            if (fitRoutePending) FitRoute();
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -331,14 +636,16 @@ namespace GTAVRidingCompanion
             g.Clear(Ocean);
             if (full == null)
             {
-                Banner(g, loadError ?? "Loading map…");
+                Banner(g, loadError ?? (!String.IsNullOrEmpty(Overlay) ? Overlay : "Download the map to see the route preview."));
                 return;
             }
             DrawImage(g);
             g.SmoothingMode = SmoothingMode.AntiAlias;
             if (route.Count > 1)
             {
-                var points = route.ConvertAll(ToScreen).ToArray();
+                var line = route.ConvertAll(ToScreen);
+                if (routeClosed) line.Add(line[0]);
+                var points = line.ToArray();
                 using (var shadow = new Pen(Color.FromArgb(160, 0, 0, 0), 6f) { LineJoin = LineJoin.Round })
                 using (var pen = new Pen(Color.FromArgb(255, 255, 140, 40), 3.5f) { LineJoin = LineJoin.Round })
                 {
@@ -346,6 +653,30 @@ namespace GTAVRidingCompanion
                     g.DrawLines(pen, points);
                 }
             }
+            if (ShowRouteEndpoints && route.Count > 0)
+            {
+                if (EditPoints)
+                {
+                    for (int i = 0; i < route.Count; i++)
+                    {
+                        if (i == SelectedRoutePoint) continue;
+                        Color color = i == 0 ? Color.FromArgb(34, 197, 94) : Ui.Accent;
+                        DrawRoutePoint(g, ToScreen(route[i]), i == 0 ? "Start" : i == route.Count - 1 ? (routeClosed ? "Last point" : "Finish") : null, color);
+                    }
+                }
+                else
+                {
+                    DrawRoutePoint(g, ToScreen(route[0]), "Start", Color.FromArgb(34, 197, 94));
+                    if (route.Count > 1) DrawRoutePoint(g, ToScreen(route[route.Count - 1]), "Finish", Ui.Accent);
+                }
+                if (SelectedRoutePoint >= 0 && SelectedRoutePoint < route.Count)
+                {
+                    PointF p = ToScreen(route[SelectedRoutePoint]);
+                    using (var halo = new SolidBrush(Color.FromArgb(100, Color.DodgerBlue))) g.FillEllipse(halo, p.X - 14, p.Y - 14, 28, 28);
+                    DrawRoutePoint(g, p, (SelectedRoutePoint == 0 ? "Start" : "Point " + SelectedRoutePoint) + " · drag to move", Color.DodgerBlue);
+                }
+            }
+            if (!ShowRouteEndpoints) { DrawSegments(g); DrawPlaces(g); }
             if (destination.HasValue) DrawDestination(g, ToScreen(destination.Value), rider.HasValue ? (PointF?)ToScreen(rider.Value) : null);
             if (target.HasValue) DrawTarget(g, ToScreen(target.Value));
             if (rider.HasValue) DrawRider(g, ToScreen(rider.Value));
@@ -361,7 +692,7 @@ namespace GTAVRidingCompanion
             float right = Math.Min(imageWidth, centerX + Width / 2f / zoom), bottom = Math.Min(imageHeight, centerY + Height / 2f / zoom);
             if (right <= left || bottom <= top) return;
             Image source = full;
-            float scale = 1f;
+            float scale = fullScale;
             foreach (var level in levels) if (level.Key >= zoom) { source = level.Value; scale = level.Key; } // Smallest copy still sharp enough.
             g.InterpolationMode = dragging ? InterpolationMode.Bilinear : (zoom > 1.5f ? InterpolationMode.NearestNeighbor : InterpolationMode.HighQualityBilinear);
             g.PixelOffsetMode = PixelOffsetMode.Half;
@@ -388,6 +719,91 @@ namespace GTAVRidingCompanion
                 g.DrawPolygon(outline, arrow);
             }
             g.Restore(state);
+        }
+
+        static void DrawRoutePoint(Graphics g, PointF p, string text, Color color)
+        {
+            using (var fill = new SolidBrush(color)) g.FillEllipse(fill, p.X - 6, p.Y - 6, 12, 12);
+            using (var outline = new Pen(Color.White, 2)) g.DrawEllipse(outline, p.X - 6, p.Y - 6, 12, 12);
+            if (text == null) return;
+            using (var font = new Font("Segoe UI", 9f, FontStyle.Bold))
+            {
+                SizeF size = g.MeasureString(text, font);
+                using (var back = new SolidBrush(Color.FromArgb(210, 15, 23, 42))) g.FillRectangle(back, p.X + 9, p.Y - 10, size.Width + 8, size.Height + 4);
+                g.DrawString(text, font, Brushes.White, p.X + 13, p.Y - 8);
+            }
+        }
+
+        static readonly Color SegmentStart = Color.FromArgb(255, 59, 130, 246), SegmentFinish = Color.FromArgb(255, 15, 23, 42);
+
+        void DrawSegments(Graphics g)
+        {
+            foreach (var mark in segments)
+            {
+                PointF a = ToScreen(calibration.ToImage(mark.StartX, mark.StartY)), b = ToScreen(calibration.ToImage(mark.FinishX, mark.FinishY));
+                string label = mark.Name + (mark.BestTimeS.HasValue ? "  " + SegmentClock(mark.BestTimeS.Value) : "");
+                if (mark.Loop) { DrawRoutePoint(g, a, "⟳ " + label, SegmentStart); continue; }
+                using (var guide = new Pen(Color.FromArgb(190, SegmentStart), 2.5f) { DashStyle = DashStyle.Dot }) g.DrawLine(guide, a, b);
+                DrawRoutePoint(g, b, "Finish", SegmentFinish);
+                DrawRoutePoint(g, a, "▶ " + label, SegmentStart);
+            }
+            if (pendingStart.HasValue) DrawRoutePoint(g, ToScreen(pendingStart.Value), "New segment start: right-click the finish", SegmentStart);
+        }
+
+        static string SegmentClock(double seconds)
+        {
+            var t = TimeSpan.FromSeconds(Math.Max(0, seconds));
+            return ((int)t.TotalMinutes).ToString(CultureInfo.InvariantCulture) + ":" + t.Seconds.ToString("00", CultureInfo.InvariantCulture) + "." + (t.Milliseconds / 100).ToString(CultureInfo.InvariantCulture);
+        }
+
+        static readonly Color PlaceColor = Color.FromArgb(255, 245, 158, 11);
+
+        void DrawPlaces(Graphics g)
+        {
+            foreach (var mark in places)
+            {
+                PointF p = ToScreen(calibration.ToImage(mark.X, mark.Y));
+                var diamond = new[] { new PointF(p.X, p.Y - 8), new PointF(p.X + 8, p.Y), new PointF(p.X, p.Y + 8), new PointF(p.X - 8, p.Y) };
+                using (var fill = new SolidBrush(mark.Found > 0 ? Color.FromArgb(255, 34, 197, 94) : PlaceColor)) g.FillPolygon(fill, diamond);
+                using (var outline = new Pen(Color.White, 2)) g.DrawPolygon(outline, diamond);
+                string text = (mark.Found > 0 ? "✓ " : "") + mark.Name;
+                using (var font = new Font("Segoe UI", 8.5f, FontStyle.Bold))
+                {
+                    SizeF size = g.MeasureString(text, font);
+                    using (var back = new SolidBrush(Color.FromArgb(200, 15, 23, 42))) g.FillRectangle(back, p.X + 11, p.Y - 9, size.Width + 6, size.Height + 2);
+                    g.DrawString(text, font, Brushes.White, p.X + 14, p.Y - 8);
+                }
+            }
+        }
+
+        PlaceMark PlaceAt(Point screen)
+        {
+            PlaceMark best = null;
+            double bestDistance = 14;
+            foreach (var mark in places)
+            {
+                PointF p = ToScreen(calibration.ToImage(mark.X, mark.Y));
+                double d = Math.Sqrt((p.X - screen.X) * (p.X - screen.X) + (p.Y - screen.Y) * (p.Y - screen.Y));
+                if (d < bestDistance) { bestDistance = d; best = mark; }
+            }
+            return best;
+        }
+
+        /// <summary>The segment whose start or finish is within 14 px of the screen point.</summary>
+        SegmentMark SegmentAt(Point screen)
+        {
+            SegmentMark best = null;
+            double bestDistance = 14;
+            foreach (var mark in segments)
+            {
+                foreach (var end in new[] { calibration.ToImage(mark.StartX, mark.StartY), calibration.ToImage(mark.FinishX, mark.FinishY) })
+                {
+                    PointF p = ToScreen(end);
+                    double d = Math.Sqrt((p.X - screen.X) * (p.X - screen.X) + (p.Y - screen.Y) * (p.Y - screen.Y));
+                    if (d < bestDistance) { bestDistance = d; best = mark; }
+                }
+            }
+            return best;
         }
 
         static readonly Color Waypoint = Color.FromArgb(255, 168, 85, 247); // GTA's waypoint is purple too.

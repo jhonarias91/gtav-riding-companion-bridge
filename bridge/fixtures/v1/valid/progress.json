@@ -1,0 +1,200 @@
+{
+  "reasonCode": null,
+  "progress": {
+    "xp": 1240,
+    "level": 3,
+    "levelName": "Explorer",
+    "xpToNextLevel": 1010,
+    "levelProgressPct": 19,
+    "stats": [
+      {
+        "id": "discoveries",
+        "label": "Spots found",
+        "value": 7,
+        "unit": null
+      },
+      {
+        "id": "placesFound",
+        "label": "My places found",
+        "value": 2,
+        "unit": null
+      },
+      {
+        "id": "zonesFound",
+        "label": "Zones found",
+        "value": 5,
+        "unit": null
+      },
+      {
+        "id": "streakDays",
+        "label": "Daily streak",
+        "value": 2,
+        "unit": "days"
+      },
+      {
+        "id": "bestStreakDays",
+        "label": "Best streak",
+        "value": 4,
+        "unit": "days"
+      },
+      {
+        "id": "missed",
+        "label": "Missed",
+        "value": 1,
+        "unit": null
+      },
+      {
+        "id": "routesCompleted",
+        "label": "Routes completed",
+        "value": 2,
+        "unit": null
+      },
+      {
+        "id": "routeCompletions",
+        "label": "Route finishes and laps",
+        "value": 3,
+        "unit": null
+      },
+      {
+        "id": "totalDistanceKm",
+        "label": "Distance with XP",
+        "value": 18.4,
+        "unit": "km"
+      }
+    ],
+    "recent": [
+      {
+        "kind": "route",
+        "atUtc": "2026-11-07T20:00:00.000Z",
+        "label": "Coastal Loop",
+        "zone": null,
+        "timeS": 3122.4,
+        "distanceM": 24300,
+        "xp": 1758
+      },
+      {
+        "kind": "discover",
+        "atUtc": "2026-11-07T19:00:00.000Z",
+        "label": "A spot in Mirror Park",
+        "zone": "Mirror Park",
+        "timeS": 412.3,
+        "distanceM": 2300,
+        "xp": 262
+      }
+    ],
+    "lastFind": {
+      "kind": "discover",
+      "atUtc": "2026-11-07T19:00:00.000Z",
+      "label": "A spot in Mirror Park",
+      "zone": "Mirror Park",
+      "timeS": 412.3,
+      "distanceM": 2300,
+      "xp": 262,
+      "stats": [
+        {
+          "id": "baseXp",
+          "label": "Distance",
+          "value": 192,
+          "unit": "XP"
+        },
+        {
+          "id": "speedBonusXp",
+          "label": "Speed bonus",
+          "value": 30,
+          "unit": "XP"
+        },
+        {
+          "id": "noHintBonusXp",
+          "label": "No circle bonus",
+          "value": 0,
+          "unit": "XP"
+        },
+        {
+          "id": "firstTimeBonusXp",
+          "label": "First visit",
+          "value": 0,
+          "unit": "XP"
+        },
+        {
+          "id": "newZoneBonusXp",
+          "label": "New zone",
+          "value": 50,
+          "unit": "XP"
+        },
+        {
+          "id": "streakDays",
+          "label": "Streak",
+          "value": 2,
+          "unit": "days"
+        }
+      ]
+    },
+    "lastRoute": {
+      "kind": "route",
+      "atUtc": "2026-11-07T20:00:00.000Z",
+      "label": "Coastal Loop",
+      "zone": null,
+      "timeS": 3122.4,
+      "distanceM": 24300,
+      "xp": 1758,
+      "stats": [
+        {
+          "id": "baseXp",
+          "label": "Distance",
+          "value": 1558,
+          "unit": "XP"
+        },
+        {
+          "id": "firstTimeBonusXp",
+          "label": "First time",
+          "value": 0,
+          "unit": "XP"
+        },
+        {
+          "id": "personalBestBonusXp",
+          "label": "Personal best",
+          "value": 100,
+          "unit": "XP"
+        },
+        {
+          "id": "avgPowerW",
+          "label": "Average power",
+          "value": 212,
+          "unit": "W"
+        },
+        {
+          "id": "streakDays",
+          "label": "Streak",
+          "value": 2,
+          "unit": "days"
+        }
+      ]
+    },
+    "routes": [
+      {
+        "routeId": "35",
+        "name": "Coastal Loop",
+        "completions": 2,
+        "laps": 0,
+        "bestTimeS": 3122.4,
+        "bestAvgPowerW": 212,
+        "bestAvgSpeedKmh": 28,
+        "distanceM": 24300,
+        "firstAtUtc": "2026-11-05T18:00:00.000Z",
+        "lastAtUtc": "2026-11-07T20:00:00.000Z"
+      },
+      {
+        "routeId": "36",
+        "name": "Hill Climb",
+        "completions": 1,
+        "laps": 0,
+        "bestTimeS": 1500.2,
+        "bestAvgPowerW": 250,
+        "bestAvgSpeedKmh": 19.4,
+        "distanceM": 8100,
+        "firstAtUtc": "2026-11-06T18:00:00.000Z",
+        "lastAtUtc": "2026-11-06T18:00:00.000Z"
+      }
+    ]
+  }
+}

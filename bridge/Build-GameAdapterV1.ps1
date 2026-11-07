@@ -17,6 +17,12 @@ $output = Join-Path $outputDirectory 'GTBikeVCompanionV1.dll'
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1World.cs') `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Teleport.cs') `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Destination.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Addons.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Alleycat.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1SurvivalSprint.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Ghost.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Discover.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Progress.cs') `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GTBikeVCompanionV1.cs')
 if ($LASTEXITCODE -ne 0) { throw 'The v1 adapter failed to build.' }
 Write-Host "v1 adapter built: $output"

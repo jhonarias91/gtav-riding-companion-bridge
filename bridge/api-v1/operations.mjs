@@ -2,6 +2,7 @@
 // or validated -> rejected. 'applied' always needs evidence read back from later snapshots; an adapter ack only
 // means the native handler was invoked. A requestId never runs twice. Unknown outcomes are never retried.
 import { randomBytes } from 'node:crypto';
+import { addonEvidence } from './addons.mjs';
 
 const RETENTION_MS = 10 * 60_000;
 const MAX_OPERATIONS = 200;
@@ -24,6 +25,12 @@ export const EVIDENCE_TIMEOUT_MS = {
   'player.teleport': 15_000, // The adapter gives up after ~12 s of streaming and puts the rider back.
   'player.waypoint': 5_000,
   'player.clearWaypoint': 5_000,
+  'addons.setEnabled': 10_000, // Starting locates the first pickup point on the adapter's frames (path nodes may stream in).
+  'addons.configure': 5_000,
+  'addons.saveSegment': 5_000,
+  'addons.removeSegment': 5_000,
+  'addons.savePlace': 5_000,
+  'addons.removePlace': 5_000,
 };
 const TELEPORT_FAILURES = new Set(['VALUE_NOT_ALLOWED', 'GAME_NOT_IN_CONTROL', 'INTERNAL']);
 
@@ -138,6 +145,13 @@ const EVIDENCE = {
     return { status: 'applied', observed: waypointOf(w) };
   },
   'player.clearWaypoint': (args, base, { snap }) => (snap?.fresh && !snap.raw.waypoint ? { status: 'applied', observed: { waypoint: null } } : null),
+  // P18: the add-on's state (start/stop, tagged with the starting requestId) or its reported parameter values.
+  'addons.setEnabled': (args, base, { snap }) => (snap?.fresh ? addonEvidence('addons.setEnabled', args, base, snap) : null),
+  'addons.configure': (args, base, { snap }) => (snap?.fresh ? addonEvidence('addons.configure', args, base, snap) : null),
+  'addons.saveSegment': (args, base, { snap }) => (snap?.fresh ? addonEvidence('addons.saveSegment', args, base, snap) : null),
+  'addons.removeSegment': (args, base, { snap }) => (snap?.fresh ? addonEvidence('addons.removeSegment', args, base, snap) : null),
+  'addons.savePlace': (args, base, { snap }) => (snap?.fresh ? addonEvidence('addons.savePlace', args, base, snap) : null),
+  'addons.removePlace': (args, base, { snap }) => (snap?.fresh ? addonEvidence('addons.removePlace', args, base, snap) : null),
   'appearance.select': (args, base, { settings }) => {
     if (!settings) return null;
     const [key] = Object.keys(args);

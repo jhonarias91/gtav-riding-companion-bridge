@@ -13,18 +13,20 @@ import { toState, toCapabilities, capabilityReasons, toRoutesPage, toRouteDetail
 import { ActivityLibrary } from './activities.mjs';
 import { toMap, toRiders, worldReasons } from './world.mjs';
 import { ModConfigStore, ModConfigError, gtaRunning } from './mod-config.mjs';
+import { toAddons, addonPrecheck, addonPoints, addonSegments, addonPlaces, toProgress } from './addons.mjs';
 
-export const API_MINOR = 13; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID, 12: P16 PC teleport, 13: P17 PC waypoint.
+export const API_MINOR = 14; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID, 12: P16 PC teleport, 13: P17 PC waypoint, 14: P18 add-ons.
 export const BRIDGE_VERSION = '0.5.1-dev';
 const MAX_BODY = 64 * 1024;
-const SERVER_CODES = new Set(['INVALID_REQUEST', 'PAYLOAD_TOO_LARGE', 'AUTH_REQUIRED', 'FORBIDDEN_SCOPE', 'PAIRING_PIN_INVALID', 'PAIRING_PIN_EXPIRED', 'RATE_LIMITED', 'NOT_FOUND', 'ADAPTER_ABSENT', 'ADAPTER_STALE', 'UNSUPPORTED_VERSION', 'CAPABILITY_UNAVAILABLE', 'REVISION_CONFLICT', 'INSTANCE_CHANGED', 'MOD_TRANSITION_IN_PROGRESS', 'GAME_NOT_IN_CONTROL', 'DEVICE_CHANGED', 'WORKOUT_PC_CONTROL_REQUIRED', 'SAVE_TOO_SHORT', 'OPERATION_UNKNOWN', 'FIT_INVALID', 'ASSET_UNAVAILABLE', 'MOD_INACTIVE', 'MOD_NOT_LOADED', 'PANEL_CLOSED', 'RIDER_MOVING', 'AUTOPILOT_ON', 'VALUE_OUT_OF_RANGE', 'VALUE_NOT_ALLOWED', 'BRIDGE_BUSY', 'GAME_RUNNING', 'INTERNAL']);
+const SERVER_CODES = new Set(['INVALID_REQUEST', 'PAYLOAD_TOO_LARGE', 'AUTH_REQUIRED', 'FORBIDDEN_SCOPE', 'PAIRING_PIN_INVALID', 'PAIRING_PIN_EXPIRED', 'RATE_LIMITED', 'NOT_FOUND', 'ADAPTER_ABSENT', 'ADAPTER_STALE', 'UNSUPPORTED_VERSION', 'CAPABILITY_UNAVAILABLE', 'REVISION_CONFLICT', 'INSTANCE_CHANGED', 'MOD_TRANSITION_IN_PROGRESS', 'GAME_NOT_IN_CONTROL', 'DEVICE_CHANGED', 'WORKOUT_PC_CONTROL_REQUIRED', 'SAVE_TOO_SHORT', 'OPERATION_UNKNOWN', 'FIT_INVALID', 'ASSET_UNAVAILABLE', 'MOD_INACTIVE', 'MOD_NOT_LOADED', 'PANEL_CLOSED', 'RIDER_MOVING', 'AUTOPILOT_ON', 'VALUE_OUT_OF_RANGE', 'VALUE_NOT_ALLOWED', 'BRIDGE_BUSY', 'GAME_RUNNING', 'RIDER_NOT_ON_BIKE', 'ADDON_NO_POINTS', 'ADDON_BUSY', 'INTERNAL']);
 const STATUS = {
   ADAPTER_ABSENT: 503, ADAPTER_STALE: 503, GAME_NOT_IN_CONTROL: 503, MOD_INACTIVE: 503, MOD_NOT_LOADED: 503,
+  RIDER_NOT_ON_BIKE: 409, ADDON_NO_POINTS: 409, ADDON_BUSY: 409,
   UNSUPPORTED_VERSION: 501, CAPABILITY_UNAVAILABLE: 501, PHASE_NOT_AVAILABLE: 501,
   VALUE_OUT_OF_RANGE: 422, VALUE_NOT_ALLOWED: 422, INVALID_REQUEST: 422, NOT_FOUND: 404, FIT_INVALID: 422,
 };
-const RETRYABLE = new Set(['ADAPTER_STALE', 'GAME_NOT_IN_CONTROL', 'BRIDGE_BUSY', 'RATE_LIMITED', 'MOD_TRANSITION_IN_PROGRESS', 'PANEL_CLOSED', 'RIDER_MOVING']);
-const HELP = { WORKOUT_PC_CONTROL_REQUIRED: 'routes.apply', ADAPTER_STALE: 'connection.stale', UNSUPPORTED_VERSION: 'connection.compatibility', AUTH_REQUIRED: 'connection.pairing', PAIRING_PIN_INVALID: 'connection.pairing', PAIRING_PIN_EXPIRED: 'connection.pairing', MOD_TRANSITION_IN_PROGRESS: 'mod.activate', AUTOPILOT_ON: 'ride.obstacles', RIDER_MOVING: 'appearance.bike', PANEL_CLOSED: 'routes.pcPreview', DEVICE_CHANGED: 'devices.lock', SAVE_TOO_SHORT: 'activity.save', FIT_INVALID: 'activity.download', GAME_RUNNING: 'modConfig.options' };
+const RETRYABLE = new Set(['ADDON_NO_POINTS', 'ADAPTER_STALE', 'GAME_NOT_IN_CONTROL', 'BRIDGE_BUSY', 'RATE_LIMITED', 'MOD_TRANSITION_IN_PROGRESS', 'PANEL_CLOSED', 'RIDER_MOVING']);
+const HELP = { WORKOUT_PC_CONTROL_REQUIRED: 'routes.apply', ADAPTER_STALE: 'connection.stale', UNSUPPORTED_VERSION: 'connection.compatibility', AUTH_REQUIRED: 'connection.pairing', PAIRING_PIN_INVALID: 'connection.pairing', PAIRING_PIN_EXPIRED: 'connection.pairing', MOD_TRANSITION_IN_PROGRESS: 'mod.activate', AUTOPILOT_ON: 'ride.obstacles', RIDER_MOVING: 'appearance.bike', PANEL_CLOSED: 'routes.pcPreview', DEVICE_CHANGED: 'devices.lock', SAVE_TOO_SHORT: 'activity.save', FIT_INVALID: 'activity.download', GAME_RUNNING: 'modConfig.options', RIDER_NOT_ON_BIKE: 'addons.catalog', ADDON_NO_POINTS: 'addons.alleycat', ADDON_BUSY: 'addons.catalog' };
 
 const safeCode = code => (SERVER_CODES.has(code) ? code : code === 'PHASE_NOT_AVAILABLE' ? 'CAPABILITY_UNAVAILABLE' : 'INTERNAL');
 const errorEnvelope = (code, { operationId = null, details = {} } = {}) => {
@@ -63,6 +65,12 @@ function toDesktopWorld(docs) {
       reasonCode: reasons['player.waypoint'],
       point: raw?.waypoint && worldPoint(raw.waypoint) ? waypointOf(raw.waypoint) : null,
     },
+    // P18: next pickup/drop-off of a running add-on, for the PC map.
+    addonPoints: addonPoints(docs.snap),
+    // P18 ghost: saved segments, drawn on the PC map and edited there.
+    segments: addonSegments(docs.snap),
+    // P18 discover: saved places (never the hidden spot of a running round).
+    places: addonPlaces(docs.snap),
   };
 }
 
@@ -186,6 +194,13 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
         const inUse = devices.roles.some(r => r.current?.source === 'BLE' && r.current.deviceId === a.deviceId && r.current.sensorType === a.sensorType);
         return inUse ? null : ['DEVICE_CHANGED', { field: 'deviceId' }];
       }
+      case 'addons.setEnabled':
+      case 'addons.configure':
+      case 'addons.saveSegment':
+      case 'addons.removeSegment':
+      case 'addons.savePlace':
+      case 'addons.removePlace':
+        return addonPrecheck(command, snap);
       case 'activities.finish':
         return command.expectedRevision === docs.state.sessionGeneration ? null : ['REVISION_CONFLICT', { resource: 'session' }];
       case 'workouts.select': {
@@ -338,6 +353,11 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
         return send(res, 200, map ? toMap(docs.snap, world.map) : toRiders(docs.snap));
       }
       if (path === '/api/v1/device-roles') return send(res, 200, docs.devices);
+      if (path === '/api/v1/progress') return send(res, 200, toProgress(docs.snap));
+      if (path === '/api/v1/addons') {
+        const reasons = capabilityReasons(docs.snap, docs.catalog);
+        return send(res, 200, toAddons(docs.snap, { 'addons.setEnabled': reasons['addons.setEnabled'], 'addons.configure': reasons['addons.configure'] }));
+      }
       if (path === '/api/v1/workout-progress') return send(res, 200, toWorkoutProgress(docs.snap));
       if (path === '/api/v1/workout-plans') return send(res, 200, toWorkoutPlans(docs.snap, await link.workouts()));
       if (path === '/api/v1/workouts') {

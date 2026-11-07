@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/progress.schema.json",
+  "title": "GET /api/v1/progress",
+  "description": "P18. The rider's XP and level, earned by Discover finds and by completed GTBike V routes (the adapter listens to Course.OnCourseCompleted), plus the routes completed with their best time. Kept on the PC in %LOCALAPPDATA%\\GTBikeVCompanion\\v1\\rider-progress.json. Same shape as the Discover add-on's progress.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reasonCode",
+    "progress"
+  ],
+  "properties": {
+    "reasonCode": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/reasonCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "progress": {
+      "anyOf": [
+        {
+          "$ref": "addons.schema.json#/$defs/progress"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

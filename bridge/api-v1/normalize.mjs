@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { DIFFICULTY_LEVELS, PROFILE_RANGES } from './validate.mjs';
 import { worldReasons } from './world.mjs';
+import { addonReasons, addonBlocksTeleport } from './addons.mjs';
 
 const RECEIVERS = ['uninitialized', 'initialized', 'started', 'complete', 'ready', 'stopping', 'stopped', 'error', 'unknown'];
 const MOD_LAYERS = ['inactive', 'initializing', 'dataReady', 'stopping', 'error', 'unknown'];
@@ -175,10 +176,14 @@ export function capabilityReasons(snap, catalog) {
     // P16 (PC window only): GTA natives move the rider; refused during a course, which it would break.
     'player.teleport': writeBlock(snap, 'player.teleport')
       ?? (raw.isDtOk !== true ? 'MOD_INACTIVE' : !inControl(raw) ? 'GAME_NOT_IN_CONTROL' : raw.activeRoute ? 'VALUE_NOT_ALLOWED'
-        : raw.teleport?.status === 'running' ? 'BRIDGE_BUSY' : null),
+        : raw.teleport?.status === 'running' ? 'BRIDGE_BUSY' : addonBlocksTeleport(raw) ? 'VALUE_NOT_ALLOWED' : null),
     // P17 (PC window only): GTA's map waypoint and GPS route. A course has its own guidance, so not during one.
     'player.waypoint': writeBlock(snap, 'player.waypoint') ?? (!inControl(raw) ? 'GAME_NOT_IN_CONTROL' : raw.activeRoute ? 'VALUE_NOT_ALLOWED' : null),
     'player.clearWaypoint': writeBlock(snap, 'player.clearWaypoint') ?? (!inControl(raw) ? 'GAME_NOT_IN_CONTROL' : raw.activeRoute ? 'VALUE_NOT_ALLOWED' : null),
+    // P18: optional add-ons run by the adapter (per-add-on start reasons are in GET /api/v1/addons).
+    ...addonReasons(snap, writeBlock),
+    // P18: XP from Discover finds and completed routes (rider-progress.json).
+    'progress.read': read() ?? (raw.riderProgress == null ? 'CAPABILITY_UNAVAILABLE' : null),
   };
   return reasons;
 }
@@ -200,6 +205,15 @@ const CATALOG = [
   ['player.teleport', 'map.gameWorld', 'async'],
   ['player.waypoint', 'map.gameWorld', 'async'],
   ['player.clearWaypoint', 'map.gameWorld', 'async'],
+  // P18: add-ons (Alleycat courier first). Parameters apply at once; non-live ones only while the add-on is stopped.
+  ['addons.read', 'addons.catalog', null],
+  ['addons.setEnabled', 'addons.catalog', 'async'],
+  ['addons.configure', 'addons.catalog', 'immediate'],
+  ['addons.saveSegment', 'addons.ghost', 'immediate'],
+  ['addons.removeSegment', 'addons.ghost', 'immediate'],
+  ['addons.savePlace', 'addons.discover', 'immediate'],
+  ['addons.removePlace', 'addons.discover', 'immediate'],
+  ['progress.read', 'progress.xp', null],
   // P15: allowlisted GTBikeVConfig.ini options, edited only with GTA V closed; they apply when the game starts.
   ['modConfig.read', 'modConfig.options', null],
   ['modConfig.update', 'modConfig.options', 'scriptReload'],

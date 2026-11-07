@@ -172,9 +172,76 @@ namespace CompanionBridge.V1
             return p != null && object.Equals(p.GetValue(element, null), true);
         }
 
+        // P18 rider progress: listens to the current course's public OnCourseCompleted event (GTBike V raises it at the
+        // finish line and for each lap of a loop) to award XP and mark the route completed. Nothing of GTBike V changes.
+        private object watchedCourse;
+        private EventInfo watchedEvent;
+        private Delegate watchedHandler;
+        private int watchedRouteId;
+        /// <summary>Set by the main script: (routeId, name, isLoop, lap, elapsedMs, distanceM, avgPowerW, avgSpeedMps).</summary>
+        public Action<int, string, bool, uint, long, int, int, double> CourseCompletedSink;
+
+        private void WatchCourse(object course)
+        {
+            if (object.ReferenceEquals(course, watchedCourse)) return;
+            try { if (watchedCourse != null && watchedEvent != null && watchedHandler != null) watchedEvent.RemoveEventHandler(watchedCourse, watchedHandler); }
+            catch (Exception) { }
+            watchedCourse = null;
+            watchedEvent = null;
+            watchedHandler = null;
+            if (course == null || !writable) return;
+            EventInfo ev;
+            Delegate handler = ListenLoopEvent(course, "OnCourseCompleted", CourseCompleted, out ev);
+            if (handler == null) return;
+            watchedCourse = course;
+            watchedEvent = ev;
+            watchedHandler = handler;
+            watchedRouteId = (ushort)courseId.GetValue(course, null) & 0x7FFF;
+        }
+
+        /// <summary>
+        /// Adds a handler to a (string, bool, uint, T) event of a GTBike V object whose delegate type is not visible here
+        /// (Course.LoopEvent): the handler is compiled for that type and forwards to sink with the last argument as object.
+        /// Returns the handler to remove later, or null when the event does not have that shape.
+        /// </summary>
+        internal static Delegate ListenLoopEvent(object source, string eventName, Action<string, bool, uint, object> sink, out EventInfo ev)
+        {
+            ev = source.GetType().GetEvent(eventName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            MethodInfo invoke = ev == null ? null : ev.EventHandlerType.GetMethod("Invoke");
+            ParameterInfo[] ps = invoke == null ? null : invoke.GetParameters();
+            if (ps == null || ps.Length != 4 || ps[0].ParameterType != typeof(string) || ps[1].ParameterType != typeof(bool) || ps[2].ParameterType != typeof(uint)
+                || ps[3].ParameterType.IsValueType || invoke.ReturnType != typeof(void)) return null;
+            System.Linq.Expressions.ParameterExpression[] args = new System.Linq.Expressions.ParameterExpression[4];
+            for (int i = 0; i < 4; i++) args[i] = System.Linq.Expressions.Expression.Parameter(ps[i].ParameterType, ps[i].Name);
+            System.Linq.Expressions.Expression call = System.Linq.Expressions.Expression.Invoke(System.Linq.Expressions.Expression.Constant(sink),
+                args[0], args[1], args[2], System.Linq.Expressions.Expression.Convert(args[3], typeof(object)));
+            Delegate handler = System.Linq.Expressions.Expression.Lambda(ev.EventHandlerType, call, args).Compile();
+            ev.AddEventHandler(source, handler);
+            return handler;
+        }
+
+        /// <summary>Runs inside GTBike V's own Tick: must never throw.</summary>
+        private void CourseCompleted(string name, bool isLoop, uint lap, object lapData)
+        {
+            try
+            {
+                Type t = lapData == null ? null : lapData.GetType();
+                if (t == null) return;
+                long elapsed = Convert.ToInt64(t.GetProperty("ElapsedTime_ms", I).GetValue(lapData, null), CultureInfo.InvariantCulture);
+                int distance = Convert.ToInt32(t.GetProperty("Distance", I).GetValue(lapData, null), CultureInfo.InvariantCulture);
+                PropertyInfo power = t.GetProperty("PowerAverage", I), speed = t.GetProperty("SpeedAverage", I);
+                int avgPower = power == null ? 0 : Convert.ToInt32(power.GetValue(lapData, null), CultureInfo.InvariantCulture);
+                double avgSpeed = speed == null ? 0 : Convert.ToDouble(speed.GetValue(lapData, null), CultureInfo.InvariantCulture);
+                Action<int, string, bool, uint, long, int, int, double> sink = CourseCompletedSink;
+                if (sink != null) sink(watchedRouteId, name, isLoop, lap, elapsed, distance, avgPower, double.IsNaN(avgSpeed) || double.IsInfinity(avgSpeed) ? 0 : avgSpeed);
+            }
+            catch (Exception e) { if (DeferredError != null) try { DeferredError(e); } catch (Exception) { } }
+        }
+
         private void CaptureRoutes(Dictionary<string, object> snap)
         {
             object course = currentCourse.GetValue(null, null);
+            WatchCourse(course);
             if (course == null) snap["activeRoute"] = null;
             else
             {

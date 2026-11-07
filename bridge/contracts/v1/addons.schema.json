@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/addons.schema.json",
+  "title": "GET /api/v1/addons",
+  "description": "P18. Optional game modes run by the v1 adapter with GTA natives only (no GTBike V member is written). Each add-on describes its own parameters, so a client renders one control per descriptor and needs no change for a new add-on. Start/stop with the command addons.setEnabled, change parameters with addons.configure (expectedRevision = addonsRevision). Labels are English; clients may localize by id.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["addonsRevision", "reasonCode", "addons"],
+  "properties": {
+    "addonsRevision": {
+      "description": "Changes only when a parameter value changes, never with run progress. null while the adapter is absent, stale or has no add-ons.",
+      "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }]
+    },
+    "reasonCode": {
+      "description": "Why nothing can be read now (ADAPTER_ABSENT, ADAPTER_STALE, CAPABILITY_UNAVAILABLE); the registry is still listed with value null.",
+      "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }]
+    },
+    "addons": { "type": "array", "maxItems": 32, "items": { "$ref": "#/$defs/addon" } }
+  },
+  "$defs": {
+    "addonId": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]{1,31}$" },
+    "statId": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]{0,31}$" },
+    "addon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "category", "summary", "description", "helpId", "state", "enabled", "startReasonCode", "configureReasonCode", "parameters", "segments", "places", "progress", "run", "result"],
+      "properties": {
+        "id": { "$ref": "#/$defs/addonId" },
+        "name": { "type": "string", "maxLength": 48 },
+        "category": { "enum": ["mission", "environment", "training", "exploration"] },
+        "summary": { "type": "string", "maxLength": 160 },
+        "description": { "type": "string", "maxLength": 1200 },
+        "helpId": { "$ref": "common.schema.json#/$defs/helpId" },
+        "state": {
+          "description": "idle: never run since the game started. preparing: locating the first point. running. finished: the run ended by its own rules (see result). aborted: stopped by the user, a course, the mod or a script reload. failed: could not start.",
+          "enum": ["idle", "preparing", "running", "finished", "aborted", "failed"]
+        },
+        "enabled": { "description": "true while preparing or running.", "type": "boolean" },
+        "startReasonCode": {
+          "description": "Why addons.setEnabled {enabled:true} would be refused now (null = allowed, also when already running). Stopping is always allowed with a fresh adapter. ADDON_BUSY: another add-on runs (one at a time).",
+          "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }]
+        },
+        "configureReasonCode": { "anyOf": [{ "$ref": "common.schema.json#/$defs/reasonCode" }, { "type": "null" }] },
+        "parameters": { "type": "array", "maxItems": 24, "items": { "$ref": "#/$defs/parameter" } },
+        "places": {
+          "description": "Saved places of add-ons that have them (discover); null for the others. Edited with addons.savePlace / addons.removePlace.",
+          "anyOf": [{ "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/place" } }, { "type": "null" }]
+        },
+        "progress": {
+          "description": "XP and levels of add-ons that keep them (discover), read from the adapter's local progress file; null for the others.",
+          "anyOf": [{ "$ref": "#/$defs/progress" }, { "type": "null" }]
+        },
+        "segments": {
+          "description": "Timed segments of add-ons that have them (ghost); null for the others. Edited with addons.saveSegment / addons.removeSegment.",
+          "anyOf": [{ "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/segment" } }, { "type": "null" }]
+        },
+        "run": { "anyOf": [{ "$ref": "#/$defs/run" }, { "type": "null" }] },
+        "result": { "description": "Last finished/aborted run; null while one runs or before any.", "anyOf": [{ "$ref": "#/$defs/result" }, { "type": "null" }] }
+      }
+    },
+    "segmentId": { "type": "string", "pattern": "^seg-[a-f0-9]{8,20}$" },
+    "placeId": { "type": "string", "pattern": "^pl-[a-f0-9]{8,20}$" },
+    "place": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "point", "found", "bestTimeS", "lastFoundAtUtc"],
+      "properties": {
+        "id": { "$ref": "#/$defs/placeId" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "point": { "$ref": "#/$defs/point" },
+        "found": { "description": "Times found (progress file).", "type": "integer", "minimum": 0 },
+        "bestTimeS": { "type": ["number", "null"] },
+        "lastFoundAtUtc": { "anyOf": [{ "type": "string", "maxLength": 40 }, { "type": "null" }] }
+      }
+    },
+    "find": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "atUtc", "label", "zone", "timeS", "distanceM", "xp"],
+      "properties": {
+        "kind": { "description": "discover: a Discover find. route: a completed GTBike V route or a lap of a loop.", "enum": ["discover", "route"] },
+        "atUtc": { "anyOf": [{ "type": "string", "maxLength": 40 }, { "type": "null" }] },
+        "label": { "type": "string", "maxLength": 64 },
+        "zone": { "type": ["string", "null"], "maxLength": 48 },
+        "timeS": { "type": ["number", "null"] },
+        "distanceM": { "type": ["number", "null"] },
+        "xp": { "type": "integer", "minimum": 0 },
+        "stats": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/stat" } }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xp", "level", "levelName", "xpToNextLevel", "levelProgressPct", "stats", "recent", "lastFind", "lastRoute", "routes"],
+      "properties": {
+        "xp": { "type": "integer", "minimum": 0 },
+        "level": { "type": "integer", "minimum": 1 },
+        "levelName": { "type": "string", "maxLength": 32 },
+        "xpToNextLevel": { "type": "integer", "minimum": 0 },
+        "levelProgressPct": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "stats": { "type": "array", "maxItems": 24, "items": { "$ref": "#/$defs/stat" } },
+        "recent": { "description": "Last finds, newest first.", "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/find" } },
+        "lastFind": { "description": "Newest Discover find with its XP breakdown in stats.", "anyOf": [{ "$ref": "#/$defs/find" }, { "type": "null" }] },
+        "lastRoute": { "description": "Newest completed route (or loop lap) with its XP breakdown in stats.", "anyOf": [{ "$ref": "#/$defs/find" }, { "type": "null" }] },
+        "routes": {
+          "description": "GTBike V routes completed at least once (by base route id, as in GET /api/v1/routes), most recent first. Clients mark these routes as completed.",
+          "type": "array", "maxItems": 500,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["routeId", "name", "completions", "laps", "bestTimeS", "bestAvgPowerW", "bestAvgSpeedKmh", "distanceM", "firstAtUtc", "lastAtUtc"],
+            "properties": {
+              "routeId": { "type": "string", "pattern": "^(0|[1-9][0-9]{0,4})$" },
+              "name": { "type": "string", "maxLength": 64 },
+              "completions": { "description": "Finishes of the whole course.", "type": "integer", "minimum": 0 },
+              "laps": { "description": "Laps completed when ridden as a loop.", "type": "integer", "minimum": 0 },
+              "bestTimeS": { "type": ["number", "null"] },
+              "bestAvgPowerW": { "type": ["number", "null"] },
+              "bestAvgSpeedKmh": { "type": ["number", "null"] },
+              "distanceM": { "type": ["number", "null"] },
+              "firstAtUtc": { "anyOf": [{ "type": "string", "maxLength": 40 }, { "type": "null" }] },
+              "lastAtUtc": { "anyOf": [{ "type": "string", "maxLength": 40 }, { "type": "null" }] }
+            }
+          }
+        }
+      }
+    },
+    "point": {
+      "type": "object", "additionalProperties": false, "required": ["x", "y"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "start", "finish", "loop", "straightM", "attempts", "lastTimeS", "best"],
+      "properties": {
+        "id": { "$ref": "#/$defs/segmentId" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "start": { "$ref": "#/$defs/point" },
+        "finish": { "$ref": "#/$defs/point" },
+        "loop": { "description": "Start and finish less than 30 m apart.", "type": "boolean" },
+        "straightM": { "type": "integer", "minimum": 0 },
+        "attempts": { "type": "integer", "minimum": 0 },
+        "lastTimeS": { "type": ["number", "null"] },
+        "best": {
+          "anyOf": [
+            {
+              "type": "object", "additionalProperties": false, "required": ["timeS", "setAtUtc", "avgPowerW", "avgSpeedKmh", "distanceM"],
+              "properties": {
+                "timeS": { "type": "number", "minimum": 0 },
+                "setAtUtc": { "anyOf": [{ "type": "string", "maxLength": 40 }, { "type": "null" }] },
+                "avgPowerW": { "type": ["number", "null"] },
+                "avgSpeedKmh": { "type": ["number", "null"] },
+                "distanceM": { "type": ["number", "null"] }
+              }
+            },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "description", "type", "default", "liveEdit", "value", "editable"],
+      "properties": {
+        "id": { "$ref": "#/$defs/statId" },
+        "label": { "type": "string", "maxLength": 48 },
+        "description": { "type": "string", "maxLength": 240 },
+        "type": { "enum": ["integer", "number", "boolean", "enum"] },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "step": { "type": "number", "exclusiveMinimum": 0 },
+        "unit": { "type": ["string", "null"], "maxLength": 12 },
+        "options": {
+          "type": "array", "minItems": 1, "maxItems": 16,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["id", "label"],
+            "properties": { "id": { "$ref": "#/$defs/statId" }, "label": { "type": "string", "maxLength": 48 } }
+          }
+        },
+        "default": { "type": ["number", "boolean", "string"] },
+        "liveEdit": { "description": "May change while the add-on runs; otherwise only while stopped (VALUE_NOT_ALLOWED).", "type": "boolean" },
+        "value": { "description": "Value the adapter holds; null while it cannot be read.", "type": ["number", "boolean", "string", "null"] },
+        "editable": { "type": "boolean" }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "enum": ["integer", "number"] } } }, "then": { "required": ["min", "max", "step", "unit"], "properties": { "min": { "type": "number" }, "max": { "type": "number" }, "step": { "type": "number" }, "unit": { "type": ["string", "null"] }, "default": { "type": "number" }, "value": { "type": ["number", "null"] } } } },
+        { "if": { "properties": { "type": { "const": "boolean" } } }, "then": { "properties": { "default": { "type": "boolean" }, "value": { "type": ["boolean", "null"] } } } },
+        { "if": { "properties": { "type": { "const": "enum" } } }, "then": { "required": ["options"], "properties": { "options": { "type": "array" }, "default": { "type": "string" }, "value": { "type": ["string", "null"] } } } }
+      ]
+    },
+    "stat": {
+      "description": "One line of progress a client may list as is (label + value + unit) or pick by id.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "value", "unit"],
+      "properties": {
+        "id": { "$ref": "#/$defs/statId" },
+        "label": { "type": "string", "maxLength": 48 },
+        "value": { "type": ["number", "boolean", "string", "null"], "maxLength": 48 },
+        "unit": { "type": ["string", "null"], "maxLength": 12 }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "elapsedS", "timeLeftS", "stats", "nextPoint"],
+      "properties": {
+        "phase": { "description": "Alleycat: locating, toPickup, toDropoff. Survival sprint: armed (waiting for the target speed), chased. Ghost: waiting, onSegment. Discover: locating, searching (nextPoint is always null: the spot stays hidden), found.", "enum": ["locating", "toPickup", "toDropoff", "armed", "chased", "waiting", "onSegment", "searching", "found"] },
+        "elapsedS": { "type": "integer", "minimum": 0 },
+        "timeLeftS": { "description": "null until the clock starts (first pickup).", "type": ["integer", "null"], "minimum": 0 },
+        "stats": { "type": "array", "maxItems": 24, "items": { "$ref": "#/$defs/stat" } },
+        "nextPoint": {
+          "description": "GTA world metres of the next pickup or drop-off (also on the game map with a GPS route).",
+          "anyOf": [
+            {
+              "type": "object", "additionalProperties": false, "required": ["x", "y", "kind", "distanceM"],
+              "properties": {
+                "x": { "type": "number" }, "y": { "type": "number" },
+                "kind": { "enum": ["pickup", "dropoff", "start", "finish"] },
+                "distanceM": { "type": ["integer", "null"], "minimum": 0 }
+              }
+            },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "finishedAtUtc", "stats"],
+      "properties": {
+        "outcome": { "enum": ["completed", "timeUp", "caught", "stopped", "courseLoaded", "modInactive", "riderLost", "noPoints", "internal"] },
+        "finishedAtUtc": { "anyOf": [{ "type": "string", "maxLength": 40 }, { "type": "null" }] },
+        "stats": { "type": "array", "maxItems": 24, "items": { "$ref": "#/$defs/stat" } }
+      }
+    }
+  }
+}

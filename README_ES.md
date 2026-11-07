@@ -69,7 +69,14 @@ La ventana (en inglés) tiene estas pestañas:
 
 - **Phone**: código QR, código de vinculación manual, dirección, identidad del puente, huella de la clave y teléfonos vinculados. Déjala abierta mientras pedaleas.
 - **Mod**: activar o desactivar GTBike V, perfil del ciclista, ajustes de pedaleo, bicicleta y personaje (las mismas opciones que la app Android) y un mapa en vivo con tu posición y el recorrido cargado. Rueda del ratón para acercar, arrastrar para mover, doble clic para acercar y clic derecho para **Teleport here** (solo en paseo libre; el juego te deja en el suelo o en la carretera más cercana), marcar un **destino GPS** (el juego dibuja la ruta en su minimapa y el mapa muestra la distancia por carretera) o copiar coordenadas. La imagen del mapa no va en el instalador: la primera vez pulsa **Download map (15 MB)**; se guarda en `%LOCALAPPDATA%\GTBikeVCompanion\map` y se comprueba (tamaño y dimensiones) contra la calibración de `installer\resources\gta-map.calibration.json` antes de usarla.
-- **Routes**: buscar en el catálogo de recorridos, ver detalles, elegir vuelta o sentido inverso, **Apply route**, **Free ride** o **Show in game** (abre el selector de recorridos de GTBike V en esa ruta), con los mismos avisos que el teléfono, incluido reiniciar un entrenamiento en curso.
+- **Routes**: al seleccionar un recorrido se muestran sus detalles, archivo y trazado en un mapa dentro de la misma pestaña. **Download map (15 MB)** comparte la imagen con Mod. El mapa conecta los puntos; GTA V calcula la trayectoria por carretera. El catálogo local también funciona sin iniciar el juego.
+
+  **Create editable copy / Edit copy** abre directamente el editor en **Map**. Haz clic en un punto o en un segmento: se selecciona el waypoint más cercano y se resalta en azul. Mantén pulsado el botón izquierdo y arrástralo; el trazado acompaña el movimiento y la ubicación se actualiza al soltar. Arrastra una zona vacía para desplazar el mapa y usa la rueda para ampliar. Escape cancela un arrastre en curso.
+
+  **New** crea una ruta desde cero: primer clic para la salida, clics siguientes para los puntos intermedios y la llegada. **Undo last point** deshace el último clic. Pulsa **Finish route** cuando hayas marcado la llegada y **Save route** para guardar. Basta una salida y una llegada; **Add points** permite prolongar después el trazado. Los puntos colocados o movidos en el mapa usan la altura del terreno que resuelve el juego. **Details**, **Waypoints** y **Advanced JSON** conservan las opciones de nombre, autor, descripción, notas, categorías, actividades, vuelta, estadísticas, coordenadas/altura, marcadores, props y otros campos.
+
+  Las rutas personales se guardan en `Documentos\Rockstar Games\GTA V\ModSettings\CompanionRoutes`, con un ID propio y versiones por edición. Puedes guardar con el juego abierto. Con GTA V cerrado, **Add copies to game** incorpora los archivos al catálogo nativo `ModSettings\courses.json` y conserva una copia de seguridad; también se incorporan al volver a Routes con el juego cerrado. Inicia GTA V después para usarlas. La biblioteca personal se conserva si el mod reemplaza el catálogo oficial; puedes incorporarla de nuevo con el juego cerrado. **Apply route**, **Free ride** y **Show in game** mantienen los avisos del teléfono, incluido reiniciar un entrenamiento en curso.
+
 - **Training**: planes y entrenamientos con su perfil de potencia, el entrenamiento en curso en el juego y **Select and start**. Pausar, saltar, terminar y ERG se hacen en el juego.
 - **Sensors**: qué dispositivo usa GTBike V para cada función y su regla (Auto, Lock, Skip), y desconectar un sensor Bluetooth. Buscar un sensor Bluetooth nuevo se hace desde la app del teléfono.
 - **Activities**: salidas guardadas con su resumen y gráfico de potencia, **Show file in folder** y **Save current activity**.
@@ -363,4 +370,4 @@ Las pruebas automatizadas usan carpetas temporales y un adaptador simulado. Pued
 
 ## Licencia
 
-Todos los derechos están reservados hasta que se elija una licencia y se añada el archivo `LICENSE`.
+Este proyecto se distribuye bajo la [licencia MIT](https://github.com/jhonarias91/gtav-riding-companion-bridge/blob/main/LICENSE).

@@ -186,6 +186,54 @@ namespace GTAVRidingCompanion
         }
     }
 
+    /// <summary>One-line text prompt. Ask returns the trimmed text, or null when cancelled or empty.</summary>
+    sealed class PromptDialog : Form
+    {
+        readonly TextBox input;
+
+        PromptDialog(string title, string label, string value, int maxLength)
+        {
+            Text = Program.Name;
+            Font = Ui.Body;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = MinimizeBox = false;
+            ShowInTaskbar = false;
+            StartPosition = FormStartPosition.CenterParent;
+            BackColor = Ui.CardBack;
+            AutoSize = true;
+            AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            var layout = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, Padding = new Padding(22, 18, 22, 16), WrapContents = false };
+            layout.Controls.Add(new Label { Text = title, Font = Ui.Heading, AutoSize = true, MaximumSize = new Size(420, 0), Margin = new Padding(0, 0, 0, 8) });
+            layout.Controls.Add(new Label { Text = label, AutoSize = true, MaximumSize = new Size(420, 0), Margin = new Padding(0, 0, 0, 6) });
+            input = new TextBox { Text = value, MaxLength = maxLength, Width = 420, Margin = new Padding(0, 0, 0, 14) };
+            layout.Controls.Add(input);
+            var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Width = 420, Margin = Padding.Empty };
+            var ok = Ui.Primary("Save");
+            ok.Width = 120;
+            ok.DialogResult = DialogResult.OK;
+            var cancel = Ui.Secondary("Cancel");
+            cancel.Width = 100;
+            cancel.DialogResult = DialogResult.Cancel;
+            buttons.Controls.Add(ok);
+            buttons.Controls.Add(cancel);
+            layout.Controls.Add(buttons);
+            Controls.Add(layout);
+            AcceptButton = ok;
+            CancelButton = cancel;
+            Shown += (s, e) => { input.SelectAll(); input.Focus(); };
+        }
+
+        internal static string Ask(IWin32Window owner, string title, string label, string value, int maxLength)
+        {
+            using (var dialog = new PromptDialog(title, label, value, maxLength))
+            {
+                if (dialog.ShowDialog(owner) != DialogResult.OK) return null;
+                string text = dialog.input.Text.Trim();
+                return text.Length == 0 ? null : text;
+            }
+        }
+    }
+
     /// <summary>Plain confirmation with a title, a wrapped explanation and an action button.</summary>
     sealed class ConfirmDialog : Form
     {

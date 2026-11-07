@@ -1,0 +1,14 @@
+{
+  "requestId": "7f2a3b4c-5d6e-4f7a-8b9c-0d1e2f3a4b62",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "addons.configure",
+  "expectedRevision": "addons-f6bdfd3601b0",
+  "args": {
+    "addonId": "alleycat",
+    "params": {
+      "packages": 3,
+      "fragility": "high",
+      "headwindMps": 7.5
+    }
+  }
+}

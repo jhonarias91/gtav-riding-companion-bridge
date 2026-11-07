@@ -1,0 +1,10 @@
+{
+  "requestId": "7f2a3b4c-5d6e-4f7a-8b9c-0d1e2f3a4b66",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "addons.removeSegment",
+  "expectedRevision": null,
+  "args": {
+    "addonId": "ghost",
+    "segmentId": "seg-1a2b3c4d"
+  }
+}

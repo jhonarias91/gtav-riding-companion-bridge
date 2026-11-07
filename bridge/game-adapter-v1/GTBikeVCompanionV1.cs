@@ -41,6 +41,8 @@ namespace CompanionBridge.V1
             Interval = 250;
             Tick += OnTick;
             Aborted += delegate { try { teleport.Abort(); } catch (Exception) { } }; // Script reload: never leave the rider frozen.
+            GtbikeV1Addons.Shared.Error = Log; // P18: the add-ons run on GtbikeV1AddonHost (every frame).
+            GtbikeV1Addons.Shared.Load(directory);
         }
 
         private void OnTick(object sender, EventArgs args)
@@ -76,7 +78,17 @@ namespace CompanionBridge.V1
                     ((List<string>)snapshot["commands"]).Add("player.teleport");
                     ((List<string>)snapshot["commands"]).Add("player.waypoint");
                     ((List<string>)snapshot["commands"]).Add("player.clearWaypoint");
+                    ((List<string>)snapshot["commands"]).Add("addons.setEnabled");
+                    ((List<string>)snapshot["commands"]).Add("addons.configure");
+                    ((List<string>)snapshot["commands"]).Add("addons.saveSegment");
+                    ((List<string>)snapshot["commands"]).Add("addons.removeSegment");
+                    ((List<string>)snapshot["commands"]).Add("addons.savePlace");
+                    ((List<string>)snapshot["commands"]).Add("addons.removePlace");
                 }
+                // P18: what the add-ons must know (GTBike V active, course loaded, power and cadence), then their report.
+                Dictionary<string, object> addonMetrics = Get(snapshot, "metrics") as Dictionary<string, object>;
+                GtbikeV1Addons.Shared.Context(object.Equals(Get(snapshot, "isDtOk"), true), Get(snapshot, "activeRoute") != null, gameControl,
+                    Number(Get(addonMetrics, "powerW")), Number(Get(addonMetrics, "cadenceRpm")));
             }
             catch (Exception e)
             {
@@ -95,11 +107,15 @@ namespace CompanionBridge.V1
             snapshot["teleport"] = teleport.Report; // Evidence for player.teleport: requestId + running|done|failed.
             try { snapshot["waypoint"] = GtbikeV1Destination.Read(); } // GTA map waypoint + GPS route length (PC map).
             catch (Exception) { snapshot["waypoint"] = null; }
+            snapshot["addons"] = GtbikeV1Addons.Shared.Report(); // P18: state, params, run and result per add-on.
+            snapshot["addonContext"] = GtbikeV1Addons.Shared.ContextReport();
+            snapshot["riderProgress"] = GtbikeV1Progress.Shared.Report(); // P18: XP, level, completed routes.
             lastSnapshot = snapshot;
             Dictionary<string, object> toWrite = snapshot;
             Dictionary<string, object> catalog = extensions == null ? null : extensions.TakeCatalog();
             Dictionary<string, object> workouts = more == null ? null : more.TakeWorkouts();
             Dictionary<string, object> paths = more == null ? null : more.TakePaths();
+            Dictionary<string, object> addonFiles = GtbikeV1Addons.Shared.TakeFiles();
             Task.Run(delegate
             {
                 try
@@ -107,6 +123,7 @@ namespace CompanionBridge.V1
                     if (catalog != null) AtomicWrite(Path.Combine(directory, "catalog.json"), catalog); // Before the snapshot that quotes its revision.
                     if (workouts != null) AtomicWrite(Path.Combine(directory, "workouts.json"), workouts);
                     if (paths != null) AtomicWrite(Path.Combine(directory, "paths.json"), paths);
+                    if (addonFiles != null) WriteAddonFiles(addonFiles);
                     AtomicWrite(Path.Combine(directory, "telemetry.json"), toWrite);
                 }
                 catch (Exception e) { Log(e); }
@@ -126,6 +143,7 @@ namespace CompanionBridge.V1
                 binding = new GtbikeV1Binding(delegate(string name) { return mod.GetType(name, false); }, version);
                 extensions = new GtbikeV1Extensions(delegate(string name) { return mod.GetType(name, false); }, version == GtbikeV1Binding.SupportedVersion);
                 extensions.DeferredError = Log; // Work run on the mod's own Tick (bike/character change).
+                extensions.CourseCompletedSink = GtbikeV1Progress.Shared.RouteCompleted; // P18: XP for completed routes.
                 more = new GtbikeV1More(delegate(string name) { return mod.GetType(name, false); }, version == GtbikeV1Binding.SupportedVersion);
                 more.DeferredError = Log; // Workout selection runs on the mod's own Tick.
                 if (version == GtbikeV1Binding.SupportedVersion)
@@ -239,7 +257,13 @@ namespace CompanionBridge.V1
             Dictionary<string, object> metrics = Get(lastSnapshot, "metrics") as Dictionary<string, object>;
             object speed = metrics == null ? null : Get(metrics, "speedMps");
             double? speedMps = speed == null ? (double?)null : Convert.ToDouble(speed, CultureInfo.InvariantCulture);
-            // P16: only the PC window may send it (the bridge refuses phones). Blocked during a course: it would break it.
+            // P18: add-ons check their own preconditions (mod active, in control, no course, on a bicycle).
+            if (type == "addons.setEnabled" || type == "addons.configure" || type == "addons.saveSegment" || type == "addons.removeSegment"
+                || type == "addons.savePlace" || type == "addons.removePlace")
+                return GtbikeV1Addons.Shared.Command(type, id, args);
+            // P16: only the PC window may send it (the bridge refuses phones). Blocked during a course: it would break it,
+            // and during an add-on mission: it would skip it.
+            if (type == "player.teleport" && GtbikeV1Addons.Shared.BlocksTeleport) return Rejected("VALUE_NOT_ALLOWED");
             if (type == "player.teleport") return teleport.Start(id, args, dtOk, gameControl, Get(lastSnapshot, "activeRoute") != null);
             // P17: GTA's own waypoint, so the game draws the GPS route on the minimap.
             if (type == "player.waypoint") return GtbikeV1Destination.Set(args, gameControl, Get(lastSnapshot, "activeRoute") != null);
@@ -281,6 +305,13 @@ namespace CompanionBridge.V1
             return d != null && d.TryGetValue(key, out v) ? v : null;
         }
 
+        private static double? Number(object value)
+        {
+            if (!(value is int || value is long || value is float || value is double || value is decimal || value is short || value is ushort || value is byte)) return null;
+            double v = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+            return double.IsNaN(v) || double.IsInfinity(v) ? (double?)null : v;
+        }
+
         private static Dictionary<string, object> Rejected(string reasonCode)
         {
             Dictionary<string, object> ack = new Dictionary<string, object>();
@@ -289,12 +320,26 @@ namespace CompanionBridge.V1
             return ack;
         }
 
+        /// <summary>P18: add-on files under the adapter directory only (relative names without ".."); null = delete.</summary>
+        private void WriteAddonFiles(Dictionary<string, object> files)
+        {
+            string root = Path.GetFullPath(directory) + Path.DirectorySeparatorChar;
+            foreach (KeyValuePair<string, object> file in files)
+            {
+                string path = Path.GetFullPath(Path.Combine(directory, file.Key));
+                if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) || file.Key.Contains("..")) continue;
+                if (file.Value == null) { if (File.Exists(path)) File.Delete(path); continue; }
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                AtomicWrite(path, file.Value);
+            }
+        }
+
         private static void AtomicWrite(string path, object value)
         {
             string temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
-                File.WriteAllText(temp, new JavaScriptSerializer().Serialize(value), new UTF8Encoding(false));
+                File.WriteAllText(temp, new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Serialize(value), new UTF8Encoding(false));
                 if (File.Exists(path)) File.Replace(temp, path, null); else File.Move(temp, path);
             }
             finally { if (File.Exists(temp)) File.Delete(temp); }

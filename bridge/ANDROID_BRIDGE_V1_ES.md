@@ -83,6 +83,20 @@ La orden remota de unirse queda deshabilitada. `JoinMultiplayerHandler` llama a 
 
 La edición de bots y tráfico también queda deshabilitada. La configuración se lee de la caché del mod. `BotGang.CreateBotGang` consulta la definición al crear un grupo y `ChangeCarsForBikes` captura sus ajustes al construirse. Para habilitar P8c hace falta probar una aplicación posterior a la recarga, con revisión, respaldo y distinción entre valor persistido y valor en uso.
 
+## P18 · Complementos (Alleycat, sprint de supervivencia, segmentos fantasma, Descubre) y XP del ciclista
+
+Modos de juego opcionales que ejecuta el adaptador junto a GTBike V (`GtbikeV1Addons.cs`; `GtbikeV1AddonHost` es un segundo script con `Interval = 0`, porque los golpes duran un frame y el marcador se dibuja en cada frame). Solo nativas de GTA; no se escribe nada de GTBike V. GTBike V lee el viento del juego (`GET_WIND_SPEED`/`GET_WIND_DIRECTION`) y el clima (fricción y tracción), así que el viento en contra llega al rodillo como resistencia y la lluvia reduce el agarre. Teléfonos, PWA y ventana del PC usan el mismo contrato (`contracts/v1/addons.schema.json`):
+
+- `GET /api/v1/addons`: registro con descriptores de parámetros tipados (`integer|number` con `min/max/step/unit`, `boolean`, `enum` con `options`), `value`, `editable`, `state`, `run` (fase, reloj, `stats` y `nextPoint`) y `result`. Un cliente dibuja un control por descriptor; un complemento nuevo no requiere cambios en los clientes. `addonsRevision` solo cambia cuando cambia un valor.
+- `addons.setEnabled` `{addonId, enabled}`: iniciar exige `expectedRevision = addonsRevision`, mod activo, juego en control, sin recorrido (`VALUE_NOT_ALLOWED`) y ciclista en bicicleta (`RIDER_NOT_ON_BIKE`); detener lleva `expectedRevision: null` y siempre se permite. Sin puntos en el centro: `ADDON_NO_POINTS`.
+- `addons.configure` `{addonId, params}` (solo los cambiados, `expectedRevision = addonsRevision`); los parámetros con `liveEdit: false` no cambian con el complemento en marcha. El adaptador los guarda en `v1ddons-settings.json`.
+- Un complemento a la vez (`ADDON_BUSY`). Alleycat no se permite en un recorrido; el sprint de supervivencia sí.
+- Sprint de supervivencia: al superar `targetKmh` aparece un perseguidor a `startGapM` sobre tu propia trayectoria; se mantiene si sostienes la velocidad pedaleando, se acerca si vas más lento o dejas de pedalear más de `coastGraceS` (potencia y cadencia de GTBike V) y te embiste a 4 m. Gana quien aguanta `durationMin`.
+- Segmentos fantasma: `addons.saveSegment` (crear/renombrar; mover un punto reinicia el récord; máx. 50) y `addons.removeSegment`; `segments[]` en el documento del complemento y en `/desktop/world`. Al entrar en un círculo de salida empieza el intento y un ciclista fantasma repite tu mejor (o último) intento; `deltaS` es la diferencia en vivo. Archivos `v1/ghost-segments.json` y `v1/ghosts/`. El teletransporte solo se bloquea durante un intento.
+- Descubre: lugares con `addons.savePlace` / `addons.removePlace` (`places[]`, máx. 100). Cada ronda esconde un lugar o un punto aleatorio; solo se expone la pista (zona, distancia, frío/caliente, tendencia), nunca su posición. XP por hallazgo (distancia, rapidez, primera visita, zona nueva, racha diaria, sin círculo).
+- XP del ciclista: archivo local `v1/rider-progress.json`. Completar un recorrido de GTBike V (evento público `Course.OnCourseCompleted`, solo escucha) da XP y lo marca como completado; `GET /api/v1/progress` (`progress.read`) devuelve XP, nivel, racha y `routes[]` con veces y mejor tiempo.
+- Con un complemento en marcha se rechaza `player.teleport`; cargar un recorrido termina la misión. `/desktop/world` añade `addonPoints`.
+
 ## Diagnóstico y aceptación
 
 - Ejecuta `Diagnose-BridgeV1.ps1` para comprobar el puerto, la versión detectada y la antigüedad de la instantánea de estado. Comparte el resultado sin PIN ni token. Un puerto en escucha demuestra que algún proceso lo abrió. Comprueba que `/api/v1/hello` identifica el puente esperado.

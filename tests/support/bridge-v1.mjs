@@ -17,7 +17,7 @@ export const readJson = async p => JSON.parse(await readFile(p, 'utf8'));
 export async function schemas() {
   const ajv = new Ajv2020({ strict: true, strictTypes: false, allErrors: true });
   const ids = {};
-  for (const name of ['common', 'hello', 'capabilities', 'state', 'command', 'operation', 'error', 'routes', 'route-preview', 'settings', 'devices', 'workouts', 'activities', 'map', 'riders', 'mod-config']) {
+  for (const name of ['common', 'hello', 'capabilities', 'state', 'command', 'operation', 'error', 'routes', 'route-preview', 'settings', 'devices', 'workouts', 'activities', 'map', 'riders', 'mod-config', 'addons', 'progress']) {
     const s = await readJson(join(contracts, `${name}.schema.json`));
     ajv.addSchema(s);
     ids[name] = s.$id;
@@ -38,7 +38,7 @@ export class FakeAdapter {
     this.raw = {
       schema: 'gtbikev-adapter-v1', modLoaded: true, modVersion: '0.8.0.4', binding: 'compatible', bindingProfile: 'gtbikev-0804', bindingIssues: [],
       gameControl: 'inControl', isDtOk: true, modLayer: 'dataReady', receivers: { ant: 'ready', ble: 'ready' }, sport: 'cycling',
-      commands: ['mod.setActive', 'routes.apply', 'routes.preview', 'ui.openPanel', 'ui.closePanel', 'profile.update', 'rideSettings.update', 'appearance.select', 'devices.configure', 'devices.assign', 'devices.disconnect', 'activities.finish', 'workouts.select', 'player.teleport', 'player.waypoint', 'player.clearWaypoint'],
+      commands: ['mod.setActive', 'routes.apply', 'routes.preview', 'ui.openPanel', 'ui.closePanel', 'profile.update', 'rideSettings.update', 'appearance.select', 'devices.configure', 'devices.assign', 'devices.disconnect', 'activities.finish', 'workouts.select', 'player.teleport', 'player.waypoint', 'player.clearWaypoint', 'addons.setEnabled', 'addons.configure', 'addons.saveSegment', 'addons.removeSegment', 'addons.savePlace', 'addons.removePlace'],
       metrics: { powerW: 180, speedMps: 0, speedVirtual: true, cadenceRpm: 85, heartRateBpm: null, distanceM: 120.5, ridingTimeMs: 60000, slopeFraction: 0.01, windSpeedMps: 0, windDirRad: 0 },
       activity: { movingTimeMs: 55000, elevationGainM: 3, elevationLossM: 1, workoutPresent: false, workoutFinished: null },
       sensors: [{ role: 'power', present: true, source: 'ANT', deviceId: '54321', sensorType: 'FEC' }, { role: 'heartRate', present: false, source: 'unknown', deviceId: null, sensorType: 'unknown' }],
@@ -63,7 +63,31 @@ export class FakeAdapter {
       p8Map: { position: { x: 100, y: -200, z: 30, heading: 0 }, route: null },
       teleport: null,
       waypoint: null,
+      // P18: GtbikeV1Addons.Report() and ContextReport().
+      addons: { alleycat: { state: 'idle', requestId: null, reasonCode: null, params: { packages: 5, timeLimitMin: 20, fragility: 'normal', heavyChancePct: 40, stormWhenHeavy: true, headwindMps: 10, showHud: true }, run: null, result: null },
+        survivalSprint: { state: 'idle', requestId: null, reasonCode: null, params: { targetKmh: 30, startGapM: 30, closingKmh: 12, coastGraceS: 3, minPowerW: 20, durationMin: 10, chaser: 'phantomWedge', ramOnCatch: true, showHud: true }, run: null, result: null },
+        ghost: { state: 'idle', requestId: null, reasonCode: null, params: { ghostSource: 'best', showGhost: true, ghostOpacityPct: 60, gateRadiusM: 12, maxAttemptMin: 60, showHud: true }, segments: [], run: null, result: null, blocksTeleport: false },
+        discover: { state: 'idle', requestId: null, reasonCode: null, params: { source: 'mixed', rounds: 3, minDistanceKm: 1, maxDistanceKm: 4, roundTimeMin: 30, searchAreaM: 300, discoverRadiusM: 25, showHud: true },
+          places: [], run: null, result: null,
+          progress: null } },
+      // P18: GtbikeV1Progress.Report() (Discover's "progress" is the same object).
+      riderProgress: {
+        xp: 1240, level: 3, levelName: 'Explorer', levelStartXp: 1000, nextLevelXp: 2250, discoveries: 7, placesFound: 2, zonesFound: 5, streakDays: 2, bestStreakDays: 4, missed: 1,
+        routeCompletions: 3, routesCompleted: 2, totalDistanceM: 18400,
+        recent: [
+          { kind: 'route', atUtc: '2026-11-07T20:00:00.000Z', name: 'Coastal Loop', routeId: '35', timeS: 3122.4, distanceM: 24300, xp: 1758 },
+          { kind: 'discover', atUtc: '2026-11-07T19:00:00.000Z', name: 'A spot in Mirror Park', zone: 'Mirror Park', timeS: 412.3, distanceM: 2300, xp: 262 },
+        ],
+        lastFind: { kind: 'discover', atUtc: '2026-11-07T19:00:00.000Z', name: 'A spot in Mirror Park', zone: 'Mirror Park', timeS: 412.3, distanceM: 2300, xp: 262, baseXp: 192, speedBonusXp: 30, noHintBonusXp: 0, firstTimeBonusXp: 0, newZoneBonusXp: 50, streakDays: 2 },
+        lastRoute: { kind: 'route', atUtc: '2026-11-07T20:00:00.000Z', name: 'Coastal Loop', routeId: '35', loop: false, lap: 0, timeS: 3122.4, distanceM: 24300, avgPowerW: 212, xp: 1758, baseXp: 1558, firstTimeBonusXp: 0, personalBestBonusXp: 100, streakDays: 2 },
+        routes: [
+          { routeId: '36', name: 'Hill Climb', completions: 1, laps: 0, firstAtUtc: '2026-11-06T18:00:00.000Z', lastAtUtc: '2026-11-06T18:00:00.000Z', bestTimeS: 1500.2, bestAvgPowerW: 250, bestAvgSpeedKmh: 19.4, distanceM: 8100 },
+          { routeId: '35', name: 'Coastal Loop', completions: 2, laps: 0, firstAtUtc: '2026-11-05T18:00:00.000Z', lastAtUtc: '2026-11-07T20:00:00.000Z', bestTimeS: 3122.4, bestAvgPowerW: 212, bestAvgSpeedKmh: 28, distanceM: 24300 },
+        ],
+      },
+      addonContext: { onBicycle: true },
     };
+    this.addonStart = 'running'; // 'running' | 'noPoints' (no Downtown street point found) | 'preparing' (never settles)
     this.teleportOutcome = 'done'; // 'done' | 'water' (GtbikeV1Teleport puts the rider back) | 'running' (never settles)
     this.workouts = {
       catalogRevision: 'workouts-a1',
@@ -94,6 +118,7 @@ export class FakeAdapter {
    */
   write(at = null) {
     const run = async () => {
+      if (this.raw.addons?.discover && this.raw.riderProgress !== undefined) this.raw.addons.discover.progress = this.raw.riderProgress;
       const doc = { ...this.raw, adapterInstanceId: this.instance, sequence: ++this.sequence, capturedAtUtc: (at ?? new Date()).toISOString(), sessionGeneration: this.generation };
       await atomic(join(this.dir, 'telemetry.json'), doc);
       await atomic(join(this.dir, 'catalog.json'), this.catalog);
@@ -178,6 +203,51 @@ export class FakeAdapter {
     // Mirrors GtbikeV1Destination: GTA's waypoint blip (snapped a little) and its GPS route length.
     if (cmd.type === 'player.waypoint') this.raw.waypoint = { x: a.x + 0.4, y: a.y - 0.3, routeFound: true, routeLengthM: 2450 };
     if (cmd.type === 'player.clearWaypoint') this.raw.waypoint = null;
+    // Mirrors GtbikeV1Addons / GtbikeV1Alleycat: a run tagged with the starting requestId; configure stores the values.
+    if (cmd.type === 'addons.configure') Object.assign(this.raw.addons[a.addonId].params, a.params);
+    // Mirrors GtbikeV1Ghost.SegmentCommand: moving a point resets the record.
+    if (cmd.type === 'addons.saveSegment') {
+      const list = this.raw.addons.ghost.segments;
+      const found = list.find(x => x.id === a.segmentId);
+      if (found) {
+        const moved = ['x', 'y'].some(k => Math.abs(found.start[k] - a.start[k]) > 5 || Math.abs(found.finish[k] - a.finish[k]) > 5);
+        Object.assign(found, { name: a.name, start: a.start, finish: a.finish }, moved ? { best: null, attempts: 0, lastTimeS: null } : {});
+      } else list.push({ id: a.segmentId, name: a.name, start: a.start, finish: a.finish, attempts: 0, lastTimeS: null, best: null });
+    }
+    // Mirrors GtbikeV1Discover.ItemCommand.
+    if (cmd.type === 'addons.savePlace') {
+      const list = this.raw.addons.discover.places;
+      const found = list.find(x => x.id === a.placeId);
+      if (found) Object.assign(found, { name: a.name, point: a.point });
+      else list.push({ id: a.placeId, name: a.name, point: a.point, found: 0, bestTimeS: null, lastFoundAtUtc: null });
+    }
+    if (cmd.type === 'addons.removePlace') this.raw.addons.discover.places = this.raw.addons.discover.places.filter(x => x.id !== a.placeId);
+    if (cmd.type === 'addons.removeSegment') this.raw.addons.ghost.segments = this.raw.addons.ghost.segments.filter(x => x.id !== a.segmentId);
+    if (cmd.type === 'addons.setEnabled') {
+      const addon = this.raw.addons[a.addonId];
+      if (a.enabled && this.addonStart === 'noPoints') Object.assign(addon, { state: 'failed', requestId: cmd.requestId, reasonCode: 'ADDON_NO_POINTS', run: null,
+        result: { outcome: 'noPoints', finishedAtUtc: new Date().toISOString(), delivered: 0, damaged: 0, packagesTotal: addon.params.packages, score: 0, elapsedS: 0 } });
+      else if (a.enabled && a.addonId === 'discover') Object.assign(addon, { state: 'running', requestId: cmd.requestId, reasonCode: null, result: null,
+        run: { phase: 'searching', round: 1, rounds: addon.params.rounds, elapsedS: 12, timeLeftS: 1788, hintZone: 'Vinewood Hills', distanceM: 1840, heat: 'warm', trend: 'closer',
+          targetSource: 'place', targetPlaceId: addon.places[0]?.id ?? null, found: 0, missed: 0, xp: 0 } });
+      else if (a.enabled && a.addonId === 'ghost') Object.assign(addon, { state: 'running', requestId: cmd.requestId, reasonCode: null, result: null, blocksTeleport: false,
+        run: { phase: 'waiting', segmentId: null, segment: null, elapsedS: 0, deltaS: null, bestS: null, ghost: false, distanceM: 0, last: null,
+          next: addon.segments[0] ? { x: addon.segments[0].start.x, y: addon.segments[0].start.y, kind: 'start', distanceM: 420 } : null } });
+      else if (a.enabled && a.addonId === 'survivalSprint') Object.assign(addon, { state: this.addonStart, requestId: cmd.requestId, reasonCode: null, result: null,
+        run: { phase: 'armed', elapsedS: 0, timeLeftS: null, gapM: null, stabilityPct: null, speedKmh: 22.4, targetKmh: addon.params.targetKmh, accelMps2: 0.31,
+          coastingS: 0, pedaling: true, distanceM: 0, chaser: 'Phantom Wedge', chaserPosition: null } });
+      else if (a.enabled) Object.assign(addon, { state: this.addonStart, requestId: cmd.requestId, reasonCode: null, result: null,
+        run: { phase: 'toPickup', elapsedS: 0, timeLeftS: null, packagesTotal: addon.params.packages, delivered: 0, damaged: 0, carrying: false, heavy: false, integrityPct: null,
+          score: 0, zone: 'PBOX', zoneName: 'Pillbox Hill', windMps: null, weather: null, next: { x: 120.5, y: -760.25, kind: 'pickup', distanceM: 812 } } });
+      else if (a.addonId === 'discover') Object.assign(addon, { state: 'aborted', run: null,
+        result: { outcome: 'stopped', finishedAtUtc: new Date().toISOString(), found: 0, missed: 0, rounds: addon.params.rounds, xp: 0, level: 3 } });
+      else if (a.addonId === 'ghost') Object.assign(addon, { state: 'aborted', run: null, blocksTeleport: false,
+        result: { outcome: 'stopped', finishedAtUtc: new Date().toISOString(), attempts: 2, records: 1 } });
+      else if (a.addonId === 'survivalSprint') Object.assign(addon, { state: 'aborted', run: null,
+        result: { outcome: 'stopped', finishedAtUtc: new Date().toISOString(), survivedS: 0, distanceM: 0, maxSpeedKmh: 22.4, closestGapM: null, targetKmh: addon.params.targetKmh } });
+      else Object.assign(addon, { state: 'aborted', run: null,
+        result: { outcome: 'stopped', finishedAtUtc: new Date().toISOString(), delivered: 0, damaged: 0, packagesTotal: addon.params.packages, score: 0, elapsedS: 0 } });
+    }
     if (cmd.type === 'player.teleport') {
       // Mirrors GtbikeV1Teleport: the outcome is reported under the command's requestId once the ground was found.
       if (this.teleportOutcome === 'running') this.raw.teleport = { requestId: cmd.requestId, status: 'running' };

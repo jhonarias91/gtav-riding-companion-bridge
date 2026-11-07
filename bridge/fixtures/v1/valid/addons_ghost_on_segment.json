@@ -1,0 +1,480 @@
+{
+  "addonsRevision": "addons-e6fdd681ab6a",
+  "reasonCode": null,
+  "addons": [
+    {
+      "id": "alleycat",
+      "name": "Alleycat courier",
+      "category": "mission",
+      "summary": "Pick up and deliver fragile packages through Downtown Los Santos traffic against the clock.",
+      "description": "Random pickup and drop-off points in Downtown Los Santos, marked on the map with a GPS route; you choose your own line through traffic. Packages are fragile: hitting a car, a kerb or a wall, or falling, damages the one you carry, and at 0% it is lost. Heavy packages bring a storm and a headwind that GTBike V sends to your trainer as extra resistance; rain also lowers grip. The clock starts at the first pickup. Not available while a course is loaded; loading one ends the mission.",
+      "helpId": "addons.alleycat",
+      "state": "idle",
+      "enabled": false,
+      "startReasonCode": "ADDON_BUSY",
+      "configureReasonCode": null,
+      "parameters": [
+        {
+          "id": "packages",
+          "label": "Packages",
+          "description": "How many packages to pick up and deliver.",
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "unit": null,
+          "default": 5,
+          "liveEdit": false,
+          "value": 5,
+          "editable": true
+        },
+        {
+          "id": "timeLimitMin",
+          "label": "Time limit",
+          "description": "Total time, counted from the first pickup.",
+          "type": "integer",
+          "min": 5,
+          "max": 60,
+          "step": 1,
+          "unit": "min",
+          "default": 20,
+          "liveEdit": false,
+          "value": 20,
+          "editable": true
+        },
+        {
+          "id": "fragility",
+          "label": "Fragility",
+          "description": "How much damage a hit does to the package.",
+          "type": "enum",
+          "options": [
+            {
+              "id": "low",
+              "label": "Low"
+            },
+            {
+              "id": "normal",
+              "label": "Normal"
+            },
+            {
+              "id": "high",
+              "label": "High"
+            }
+          ],
+          "default": "normal",
+          "liveEdit": true,
+          "value": "normal",
+          "editable": true
+        },
+        {
+          "id": "heavyChancePct",
+          "label": "Heavy packages",
+          "description": "Chance that a package is heavy (storm and headwind while you carry it).",
+          "type": "integer",
+          "min": 0,
+          "max": 100,
+          "step": 10,
+          "unit": "%",
+          "default": 40,
+          "liveEdit": false,
+          "value": 40,
+          "editable": true
+        },
+        {
+          "id": "stormWhenHeavy",
+          "label": "Storm with heavy packages",
+          "description": "Thunderstorm in Downtown and rain elsewhere while a heavy package is carried. Rain lowers grip in GTBike V.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        },
+        {
+          "id": "headwindMps",
+          "label": "Headwind with heavy packages",
+          "description": "Wind speed set against the rider while a heavy package is carried; 0 turns it off. GTBike V sends it to the trainer as resistance.",
+          "type": "number",
+          "min": 0,
+          "max": 12,
+          "step": 0.5,
+          "unit": "m/s",
+          "default": 10,
+          "liveEdit": true,
+          "value": 10,
+          "editable": true
+        },
+        {
+          "id": "showHud",
+          "label": "On-screen status",
+          "description": "Package, integrity, time and distance as a subtitle in the game.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        }
+      ],
+      "places": null,
+      "progress": null,
+      "segments": null,
+      "run": null,
+      "result": null
+    },
+    {
+      "id": "survivalSprint",
+      "name": "Survival sprint",
+      "category": "training",
+      "summary": "Pass the target speed and a truck appears behind you. Hold the speed and keep pedalling or it runs you down.",
+      "description": "For threshold and high-intensity intervals, best on long roads such as the canals or the coast highway. Once you pass the target speed a chaser appears behind you. While you hold the target speed and keep pedalling it keeps its distance, and riding faster opens the gap a little. Below the target speed, for example on a climb, or coasting for longer than the grace time (GTBike V power and cadence near zero, even downhill at speed), it closes in fast. If it reaches you it rams you. Survive the set time to win. Works on a GTBike V course too.",
+      "helpId": "addons.survivalSprint",
+      "state": "idle",
+      "enabled": false,
+      "startReasonCode": "ADDON_BUSY",
+      "configureReasonCode": null,
+      "parameters": [
+        {
+          "id": "targetKmh",
+          "label": "Target speed",
+          "description": "Speed that starts the chase and that you must hold.",
+          "type": "integer",
+          "min": 15,
+          "max": 60,
+          "step": 1,
+          "unit": "km/h",
+          "default": 30,
+          "liveEdit": true,
+          "value": 30,
+          "editable": true
+        },
+        {
+          "id": "startGapM",
+          "label": "Start distance",
+          "description": "How far behind you the chaser appears.",
+          "type": "integer",
+          "min": 10,
+          "max": 80,
+          "step": 5,
+          "unit": "m",
+          "default": 30,
+          "liveEdit": false,
+          "value": 30,
+          "editable": true
+        },
+        {
+          "id": "closingKmh",
+          "label": "Closing speed",
+          "description": "How much faster than you (or than the target) the chaser drives while you are too slow or coasting.",
+          "type": "integer",
+          "min": 2,
+          "max": 30,
+          "step": 1,
+          "unit": "km/h",
+          "default": 12,
+          "liveEdit": true,
+          "value": 12,
+          "editable": true
+        },
+        {
+          "id": "coastGraceS",
+          "label": "Coasting allowed",
+          "description": "Seconds without pedalling before the chaser closes in.",
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "unit": "s",
+          "default": 3,
+          "liveEdit": true,
+          "value": 3,
+          "editable": true
+        },
+        {
+          "id": "minPowerW",
+          "label": "Pedalling threshold",
+          "description": "Power above this counts as pedalling (a cadence of 10 rpm or more also does). Without power or cadence data only the speed rule applies.",
+          "type": "integer",
+          "min": 0,
+          "max": 200,
+          "step": 5,
+          "unit": "W",
+          "default": 20,
+          "liveEdit": true,
+          "value": 20,
+          "editable": true
+        },
+        {
+          "id": "durationMin",
+          "label": "Survive for",
+          "description": "Length of the chase, counted from when the chaser appears.",
+          "type": "integer",
+          "min": 1,
+          "max": 60,
+          "step": 1,
+          "unit": "min",
+          "default": 10,
+          "liveEdit": false,
+          "value": 10,
+          "editable": true
+        },
+        {
+          "id": "chaser",
+          "label": "Chaser",
+          "description": "Vehicle behind you. The Phantom truck is used when the chosen one cannot be loaded.",
+          "type": "enum",
+          "options": [
+            {
+              "id": "phantomWedge",
+              "label": "Phantom Wedge"
+            },
+            {
+              "id": "police",
+              "label": "Police cruiser"
+            },
+            {
+              "id": "truck",
+              "label": "Phantom truck"
+            }
+          ],
+          "default": "phantomWedge",
+          "liveEdit": false,
+          "value": "phantomWedge",
+          "editable": true
+        },
+        {
+          "id": "ramOnCatch",
+          "label": "Ram when caught",
+          "description": "The chaser drives into you when it catches you. Off: the run simply ends.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        },
+        {
+          "id": "showHud",
+          "label": "On-screen status",
+          "description": "Time, distance bar, speed and a pedalling warning as a subtitle in the game.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        }
+      ],
+      "places": null,
+      "progress": null,
+      "segments": null,
+      "run": null,
+      "result": null
+    },
+    {
+      "id": "ghost",
+      "name": "Ghost segments",
+      "category": "training",
+      "summary": "Timed segments you mark on the map. Race a see-through ghost of your best attempt and beat your record.",
+      "description": "Mark segments on the PC window map (right-click: Ghost segment start here, then Ghost segment finish here; the same point twice makes a loop). With this add-on on, riding through a start circle starts the clock and a see-through ghost rider replays your best attempt (or your last one); the screen shows the live gap, green when you are ahead. The finish saves the attempt, and a faster one becomes the new record and the new ghost. Records keep the date, average power and speed. Teleporting cancels an attempt. Works on a GTBike V course too.",
+      "helpId": "addons.ghost",
+      "state": "running",
+      "enabled": true,
+      "startReasonCode": null,
+      "configureReasonCode": null,
+      "parameters": [
+        {
+          "id": "ghostSource",
+          "label": "Race against",
+          "description": "The ghost replays your best attempt or your last one.",
+          "type": "enum",
+          "options": [
+            {
+              "id": "best",
+              "label": "My best"
+            },
+            {
+              "id": "last",
+              "label": "My last"
+            }
+          ],
+          "default": "best",
+          "liveEdit": true,
+          "value": "best",
+          "editable": true
+        },
+        {
+          "id": "showGhost",
+          "label": "Show the ghost rider",
+          "description": "Off: only the live gap is shown.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        },
+        {
+          "id": "ghostOpacityPct",
+          "label": "Ghost opacity",
+          "description": "How visible the ghost rider is.",
+          "type": "integer",
+          "min": 20,
+          "max": 100,
+          "step": 10,
+          "unit": "%",
+          "default": 60,
+          "liveEdit": true,
+          "value": 60,
+          "editable": true
+        },
+        {
+          "id": "gateRadiusM",
+          "label": "Gate size",
+          "description": "Radius of the start and finish circles.",
+          "type": "integer",
+          "min": 8,
+          "max": 30,
+          "step": 1,
+          "unit": "m",
+          "default": 12,
+          "liveEdit": true,
+          "value": 12,
+          "editable": true
+        },
+        {
+          "id": "maxAttemptMin",
+          "label": "Give up after",
+          "description": "An attempt longer than this is cancelled.",
+          "type": "integer",
+          "min": 5,
+          "max": 120,
+          "step": 5,
+          "unit": "min",
+          "default": 60,
+          "liveEdit": true,
+          "value": 60,
+          "editable": true
+        },
+        {
+          "id": "showHud",
+          "label": "On-screen status",
+          "description": "Segment, time, gap to the ghost and distance to the finish as a subtitle in the game.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": true,
+          "editable": true
+        }
+      ],
+      "places": null,
+      "progress": null,
+      "segments": [
+        {
+          "id": "seg-1a2b3c4d",
+          "name": "Vinewood climb",
+          "start": {
+            "x": 120.1,
+            "y": 540.5
+          },
+          "finish": {
+            "x": 410,
+            "y": 1250.3
+          },
+          "loop": false,
+          "straightM": 767,
+          "attempts": 4,
+          "lastTimeS": 258.3,
+          "best": {
+            "timeS": 251.4,
+            "setAtUtc": "2026-11-07T18:00:00.000Z",
+            "avgPowerW": 245,
+            "avgSpeedKmh": 21.3,
+            "distanceM": 1490
+          }
+        },
+        {
+          "id": "seg-5e6f7a8b",
+          "name": "Canal lap",
+          "start": {
+            "x": -1000,
+            "y": -1000
+          },
+          "finish": {
+            "x": -1000,
+            "y": -1000
+          },
+          "loop": true,
+          "straightM": 0,
+          "attempts": 0,
+          "lastTimeS": null,
+          "best": null
+        }
+      ],
+      "run": {
+        "phase": "onSegment",
+        "elapsedS": 96,
+        "timeLeftS": null,
+        "stats": [
+          {
+            "id": "segment",
+            "label": "Segment",
+            "value": "Vinewood climb",
+            "unit": null
+          },
+          {
+            "id": "deltaS",
+            "label": "Gap to ghost",
+            "value": -2.4,
+            "unit": "s"
+          },
+          {
+            "id": "bestS",
+            "label": "Best",
+            "value": 251.4,
+            "unit": "s"
+          },
+          {
+            "id": "ghost",
+            "label": "Ghost visible",
+            "value": true,
+            "unit": null
+          },
+          {
+            "id": "distanceM",
+            "label": "Distance",
+            "value": 610,
+            "unit": "m"
+          },
+          {
+            "id": "lastSegment",
+            "label": "Last segment",
+            "value": "Vinewood climb",
+            "unit": null
+          },
+          {
+            "id": "lastTimeS",
+            "label": "Last time",
+            "value": 258.3,
+            "unit": "s"
+          },
+          {
+            "id": "lastDeltaS",
+            "label": "Last vs best",
+            "value": 6.9,
+            "unit": "s"
+          },
+          {
+            "id": "lastRecord",
+            "label": "Last was a record",
+            "value": false,
+            "unit": null
+          }
+        ],
+        "nextPoint": {
+          "x": 410,
+          "y": 1250.3,
+          "kind": "finish",
+          "distanceM": 702
+        }
+      },
+      "result": null
+    }
+  ]
+}

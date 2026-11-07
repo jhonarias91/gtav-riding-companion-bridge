@@ -1,0 +1,15 @@
+{
+  "requestId": "7f2a3b4c-5d6e-4f7a-8b9c-0d1e2f3a4b68",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "addons.savePlace",
+  "expectedRevision": null,
+  "args": {
+    "addonId": "discover",
+    "placeId": null,
+    "name": "Chiliad summit",
+    "point": {
+      "x": 501.3,
+      "y": 5604.5
+    }
+  }
+}

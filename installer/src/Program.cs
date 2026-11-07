@@ -20,6 +20,7 @@ namespace GTAVRidingCompanion
         internal static readonly string AdapterLog = Path.Combine(AdapterDir, "adapter.log");
         internal static readonly string BridgeLog = Path.Combine(Root, "bridge.log");
         internal static readonly string Settings = Path.Combine(Root, "desktop-settings.ini");
+        internal static readonly string CoursesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Rockstar Games", "GTA V", "ModSettings");
         /// <summary>Downloaded from the Mod tab; outside the app folder so updates keep it.</summary>
         internal static readonly string MapImage = Path.Combine(Root, "map", "gta-map.jpg");
         internal static readonly string ExeName = "GTAVRidingCompanion.exe";

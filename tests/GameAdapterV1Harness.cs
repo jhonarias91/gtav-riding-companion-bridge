@@ -38,12 +38,31 @@ namespace GTBikeV
         }
     }
 
+    public class LapData
+    {
+        public long ElapsedTime_ms { get { return 754000; } }
+        public ushort Distance { get { return 6120; } }
+        public ushort PowerAverage { get { return 231; } }
+    }
+
     internal class Activity
     {
         public long TotalMovingTime { get; set; }
         public float ElevationGain { get; set; }
         public float ElevationLoss { get; set; }
         public GTBikeV.Workouts.Workout Workout;
+    }
+}
+
+namespace GTBikeV.Courses
+{
+    // Same shape as GTBike V 0.8.0.4: internal class, public event of a nested public delegate with a public LapData.
+    internal class Course
+    {
+        public delegate void LoopEvent(string name, bool noLoop, uint loopNumber, GTBikeV.LapData lapData);
+        public event LoopEvent OnCourseCompleted;
+        public int Listeners { get { return OnCourseCompleted == null ? 0 : OnCourseCompleted.GetInvocationList().Length; } }
+        public void Finish(string name, bool loop, uint lap, GTBikeV.LapData data) { LoopEvent e = OnCourseCompleted; if (e != null) e(name, loop, lap, data); }
     }
 }
 
@@ -205,6 +224,22 @@ public static class HarnessV1
             GTBikeV.DataTransceiver.SetStates("STOPPED", "STOPPED");
             Equal(Dict(b.SetActive(false, "inControl"))["status"], "noop", "already inactive is a no-op");
             Equal(Dict(b.SetActive(true, "inControl"))["status"], "dispatched", "enable from stopped dispatches");
+
+            // P18 rider progress: a handler compiled for GTBike V's own (non-visible) LoopEvent type receives the lap data.
+            var course = new GTBikeV.Courses.Course();
+            string gotName = null; bool gotLoop = true; uint gotLap = 99; object gotData = null;
+            System.Reflection.EventInfo ev;
+            Delegate handler = GtbikeV1Extensions.ListenLoopEvent(course, "OnCourseCompleted", delegate(string n, bool l, uint lap, object d) { gotName = n; gotLoop = l; gotLap = lap; gotData = d; }, out ev);
+            Equal(handler != null, true, "course event handler compiled for the mod's delegate type");
+            Equal(course.Listeners, 1, "handler added");
+            course.Finish("Coastal Loop", false, 0, new GTBikeV.LapData());
+            Equal(gotName, "Coastal Loop", "course name forwarded");
+            Equal(gotLoop, false, "loop flag forwarded");
+            Equal(gotLap, 0u, "lap number forwarded");
+            Equal(gotData is GTBikeV.LapData, true, "lap data forwarded as object");
+            ev.RemoveEventHandler(course, handler);
+            Equal(course.Listeners, 0, "handler removed");
+            Equal(GtbikeV1Extensions.ListenLoopEvent(course, "Nope", delegate(string n, bool l, uint lap, object d) { }, out ev) == null, true, "missing event is ignored");
 
             Console.WriteLine("PASS (" + checks + " checks): v1 bindings. Mock GTBikeV only, not an in-game test.");
             return 0;

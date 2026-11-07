@@ -186,6 +186,9 @@ namespace GTAVRidingCompanion
             { "AUTH_REQUIRED", "The bridge did not accept this window. Restart the bridge." },
             { "FORBIDDEN_SCOPE", "Not allowed." },
             { "NOT_FOUND", "Not found." },
+            { "RIDER_NOT_ON_BIKE", "Get on a bicycle in the game first." },
+            { "ADDON_BUSY", "Another add-on is running. Stop it first." },
+            { "ADDON_NO_POINTS", "No Downtown street points were found. Ride closer to Downtown Los Santos and try again." },
             { "INTERNAL", "Something went wrong in the game or the bridge. Try again." },
         };
 

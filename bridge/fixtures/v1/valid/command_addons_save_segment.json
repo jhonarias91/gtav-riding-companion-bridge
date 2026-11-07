@@ -1,0 +1,19 @@
+{
+  "requestId": "7f2a3b4c-5d6e-4f7a-8b9c-0d1e2f3a4b65",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "addons.saveSegment",
+  "expectedRevision": null,
+  "args": {
+    "addonId": "ghost",
+    "segmentId": null,
+    "name": "Vinewood climb",
+    "start": {
+      "x": 120.1,
+      "y": 540.5
+    },
+    "finish": {
+      "x": 410,
+      "y": 1250.3
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "addonsRevision": null,
+  "reasonCode": "ADAPTER_ABSENT",
+  "addons": [
+    {
+      "id": "alleycat",
+      "name": "Alleycat courier",
+      "category": "mission",
+      "summary": "Pick up and deliver fragile packages through Downtown Los Santos traffic against the clock.",
+      "description": "Random pickup and drop-off points in Downtown Los Santos, marked on the map with a GPS route; you choose your own line through traffic. Packages are fragile: hitting a car, a kerb or a wall, or falling, damages the one you carry, and at 0% it is lost. Heavy packages bring a storm and a headwind that GTBike V sends to your trainer as extra resistance; rain also lowers grip. The clock starts at the first pickup. Not available while a course is loaded; loading one ends the mission.",
+      "helpId": "addons.alleycat",
+      "state": "idle",
+      "enabled": false,
+      "startReasonCode": "ADAPTER_ABSENT",
+      "configureReasonCode": "ADAPTER_ABSENT",
+      "parameters": [
+        {
+          "id": "packages",
+          "label": "Packages",
+          "description": "How many packages to pick up and deliver.",
+          "type": "integer",
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "unit": null,
+          "default": 5,
+          "liveEdit": false,
+          "value": null,
+          "editable": false
+        },
+        {
+          "id": "timeLimitMin",
+          "label": "Time limit",
+          "description": "Total time, counted from the first pickup.",
+          "type": "integer",
+          "min": 5,
+          "max": 60,
+          "step": 1,
+          "unit": "min",
+          "default": 20,
+          "liveEdit": false,
+          "value": null,
+          "editable": false
+        },
+        {
+          "id": "fragility",
+          "label": "Fragility",
+          "description": "How much damage a hit does to the package.",
+          "type": "enum",
+          "options": [
+            {
+              "id": "low",
+              "label": "Low"
+            },
+            {
+              "id": "normal",
+              "label": "Normal"
+            },
+            {
+              "id": "high",
+              "label": "High"
+            }
+          ],
+          "default": "normal",
+          "liveEdit": true,
+          "value": null,
+          "editable": false
+        },
+        {
+          "id": "heavyChancePct",
+          "label": "Heavy packages",
+          "description": "Chance that a package is heavy (storm and headwind while you carry it).",
+          "type": "integer",
+          "min": 0,
+          "max": 100,
+          "step": 10,
+          "unit": "%",
+          "default": 40,
+          "liveEdit": false,
+          "value": null,
+          "editable": false
+        },
+        {
+          "id": "stormWhenHeavy",
+          "label": "Storm with heavy packages",
+          "description": "Thunderstorm in Downtown and rain elsewhere while a heavy package is carried. Rain lowers grip in GTBike V.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": null,
+          "editable": false
+        },
+        {
+          "id": "headwindMps",
+          "label": "Headwind with heavy packages",
+          "description": "Wind speed set against the rider while a heavy package is carried; 0 turns it off. GTBike V sends it to the trainer as resistance.",
+          "type": "number",
+          "min": 0,
+          "max": 12,
+          "step": 0.5,
+          "unit": "m/s",
+          "default": 10,
+          "liveEdit": true,
+          "value": null,
+          "editable": false
+        },
+        {
+          "id": "showHud",
+          "label": "On-screen status",
+          "description": "Package, integrity, time and distance as a subtitle in the game.",
+          "type": "boolean",
+          "default": true,
+          "liveEdit": true,
+          "value": null,
+          "editable": false
+        }
+      ],
+      "places": null,
+      "progress": null,
+      "segments": null,
+      "run": null,
+      "result": null
+    }
+  ]
+}

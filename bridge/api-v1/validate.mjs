@@ -2,6 +2,8 @@
 // the ajv dev dependency; tests run both against the same fixtures so they cannot drift apart.
 // Strict: no coercion, unknown fields rejected, ranges checked here because the native setters silently
 // replace out-of-range values with defaults (Config.cs:90-140).
+import { randomBytes } from 'node:crypto';
+import { checkParams, SEGMENT_ID, PLACE_ID } from './addons.mjs';
 
 export class CommandError extends Error {
   constructor(code, status = 400, details = undefined) {
@@ -42,6 +44,7 @@ export const TELEPORT_LIMIT_M = 10_000;
 export const DESKTOP_ONLY_COMMANDS = new Set(['player.teleport', 'player.waypoint', 'player.clearWaypoint']);
 
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const isAddonId = v => typeof v === 'string' && /^[a-z][a-zA-Z0-9]{1,31}$/.test(v);
 const isInt = v => typeof v === 'number' && Number.isInteger(v);
 const isBool = v => typeof v === 'boolean';
 const isRouteId = v => typeof v === 'string' && ROUTE_ID.test(v) && Number(v) <= 32767;
@@ -139,6 +142,61 @@ const ARGS = {
     if (revision !== null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
     return {};
   },
+  // P18: start or stop an add-on (GtbikeV1Addons.cs). Starting needs the addonsRevision the client saw; stopping never does.
+  'addons.setEnabled': (a, revision) => {
+    onlyKeys(a, ['addonId', 'enabled'], ['addonId', 'enabled']);
+    if (!isAddonId(a.addonId)) throw new CommandError('INVALID_REQUEST', 422, { field: 'addonId' });
+    if (!isBool(a.enabled)) throw new CommandError('INVALID_REQUEST', 422, { field: 'enabled' });
+    if (a.enabled === (revision === null)) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
+    return { addonId: a.addonId, enabled: a.enabled };
+  },
+  // P18: change some parameters of one add-on, typed by its descriptors (addons.mjs). Only liveEdit ones while it runs.
+  'addons.configure': (a, revision) => {
+    onlyKeys(a, ['addonId', 'params'], ['addonId', 'params']);
+    if (revision === null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
+    if (!isAddonId(a.addonId)) throw new CommandError('INVALID_REQUEST', 422, { field: 'addonId' });
+    if (!isObject(a.params)) throw new CommandError('INVALID_REQUEST', 422, { field: 'params' });
+    const bad = checkParams(a.addonId, a.params);
+    if (bad) throw new CommandError(bad[0], bad[0] === 'NOT_FOUND' ? 404 : 422, bad[1]);
+    return { addonId: a.addonId, params: { ...a.params } };
+  },
+  // P18 ghost: a timed segment (start/finish in GTA world metres; the same point twice is a loop). segmentId null = new,
+  // the bridge assigns it. Saving an existing id renames it; moving its points also resets its record.
+  'addons.saveSegment': (a, revision) => {
+    onlyKeys(a, ['addonId', 'segmentId', 'name', 'start', 'finish'], ['addonId', 'segmentId', 'name', 'start', 'finish']);
+    if (revision !== null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
+    if (!isAddonId(a.addonId)) throw new CommandError('INVALID_REQUEST', 422, { field: 'addonId' });
+    if (a.segmentId !== null && (typeof a.segmentId !== 'string' || !SEGMENT_ID.test(a.segmentId))) throw new CommandError('INVALID_REQUEST', 422, { field: 'segmentId' });
+    const name = typeof a.name === 'string' ? a.name.trim() : '';
+    if (name.length < 1 || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) throw new CommandError('INVALID_REQUEST', 422, { field: 'name' });
+    const start = mapPoint(a.start, 'start'), finish = mapPoint(a.finish, 'finish');
+    if (Math.hypot(finish.x - start.x, finish.y - start.y) > 30_000) throw new CommandError('VALUE_OUT_OF_RANGE', 422, { field: 'finish' });
+    return { addonId: a.addonId, segmentId: a.segmentId ?? `seg-${randomBytes(4).toString('hex')}`, name, start, finish };
+  },
+  'addons.removeSegment': (a, revision) => {
+    onlyKeys(a, ['addonId', 'segmentId'], ['addonId', 'segmentId']);
+    if (revision !== null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
+    if (!isAddonId(a.addonId)) throw new CommandError('INVALID_REQUEST', 422, { field: 'addonId' });
+    if (typeof a.segmentId !== 'string' || !SEGMENT_ID.test(a.segmentId)) throw new CommandError('INVALID_REQUEST', 422, { field: 'segmentId' });
+    return { addonId: a.addonId, segmentId: a.segmentId };
+  },
+  // P18 discover: a saved place (GTA world metres). placeId null = new, the bridge assigns it; an existing id renames or moves it.
+  'addons.savePlace': (a, revision) => {
+    onlyKeys(a, ['addonId', 'placeId', 'name', 'point'], ['addonId', 'placeId', 'name', 'point']);
+    if (revision !== null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
+    if (!isAddonId(a.addonId)) throw new CommandError('INVALID_REQUEST', 422, { field: 'addonId' });
+    if (a.placeId !== null && (typeof a.placeId !== 'string' || !PLACE_ID.test(a.placeId))) throw new CommandError('INVALID_REQUEST', 422, { field: 'placeId' });
+    const name = typeof a.name === 'string' ? a.name.trim() : '';
+    if (name.length < 1 || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) throw new CommandError('INVALID_REQUEST', 422, { field: 'name' });
+    return { addonId: a.addonId, placeId: a.placeId ?? `pl-${randomBytes(4).toString('hex')}`, name, point: mapPoint(a.point, 'point') };
+  },
+  'addons.removePlace': (a, revision) => {
+    onlyKeys(a, ['addonId', 'placeId'], ['addonId', 'placeId']);
+    if (revision !== null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
+    if (!isAddonId(a.addonId)) throw new CommandError('INVALID_REQUEST', 422, { field: 'addonId' });
+    if (typeof a.placeId !== 'string' || !PLACE_ID.test(a.placeId)) throw new CommandError('INVALID_REQUEST', 422, { field: 'placeId' });
+    return { addonId: a.addonId, placeId: a.placeId };
+  },
   'activities.finish': (a, revision) => {
     onlyKeys(a, []);
     if (revision === null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
@@ -153,6 +211,16 @@ const ARGS = {
     return { [keys[0]]: a[keys[0]] };
   },
 };
+
+function mapPoint(p, field) {
+  if (!isObject(p)) throw new CommandError('INVALID_REQUEST', 422, { field });
+  onlyKeys(p, ['x', 'y'], ['x', 'y']);
+  for (const key of ['x', 'y']) {
+    if (typeof p[key] !== 'number' || !Number.isFinite(p[key])) throw new CommandError('INVALID_REQUEST', 422, { field });
+    if (Math.abs(p[key]) > TELEPORT_LIMIT_M) throw new CommandError('VALUE_OUT_OF_RANGE', 422, { field });
+  }
+  return { x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100 };
+}
 
 function worldPointArgs(a, revision) {
   onlyKeys(a, ['x', 'y'], ['x', 'y']);

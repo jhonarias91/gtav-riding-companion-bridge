@@ -127,6 +127,9 @@
         "VALUE_OUT_OF_RANGE",
         "VALUE_NOT_ALLOWED",
         "BRIDGE_BUSY",
+        "RIDER_NOT_ON_BIKE",
+        "ADDON_NO_POINTS",
+        "ADDON_BUSY",
         "INTERNAL"
       ]
     }
