@@ -116,6 +116,7 @@ namespace GTAVRidingCompanion
             var whole = Ui.Secondary("Whole map"); whole.Width = 100; whole.Click += (s, e) => { map.SetFollow(false); map.FitAll(); };
             follow.CheckedChanged += (s, e) => map.SetFollow(follow.Checked);
             map.FollowChanged += () => { if (follow.Checked != map.Follow) follow.Checked = map.Follow; };
+            map.TeleportRequested += async (x, y) => await Teleport(x, y);
             toolbar.Controls.AddRange(new Control[] { title, follow, zoomIn, zoomOut, whole });
             mapArea.Controls.Add(toolbar, 0, 0);
             var frame = new Panel { Dock = DockStyle.Fill, Padding = new Padding(1), BackColor = Ui.Border };
@@ -135,7 +136,7 @@ namespace GTAVRidingCompanion
             downloadCard.Visible = !File.Exists(Paths.MapImage);
             mapArea.Controls.Add(frame, 0, 1);
             var hint = new Label { Dock = DockStyle.Fill, ForeColor = Ui.Muted, Padding = new Padding(0, 6, 0, 0),
-                Text = "Scroll to zoom · drag to move · double-click to zoom in · right-click for coordinates" };
+                Text = "Scroll to zoom · drag to move · double-click to zoom in · right-click to teleport or copy coordinates" };
             mapArea.Controls.Add(hint, 0, 2);
 
             side.Controls.Add(message);
@@ -242,9 +243,14 @@ namespace GTAVRidingCompanion
             {
                 map.Overlay = Reasons.Text(world.ErrorCode);
                 map.SetRider(null, null, null);
+                map.TeleportBlock = "no game data";
                 return;
             }
             var body = world.Body;
+            // P16: the bridge says why "Teleport here" is unavailable; an older bridge sends no "teleport" at all.
+            map.TeleportVisible = Json.Get(body, "teleport") != null;
+            string teleportReason = Json.Str(Json.Obj(body, "teleport"), "reasonCode");
+            map.TeleportBlock = commandRunning ? "wait for the current action" : teleportReason == null ? null : TeleportBlockText(teleportReason);
             string adapter = Json.Str(body, "adapter"), mod = Json.Str(body, "mod"), control = Json.Str(body, "gameControl");
             var position = Json.Obj(body, "position");
             map.SetRider(Json.Num(position, "x"), Json.Num(position, "y"), Json.Num(position, "heading"));
@@ -391,6 +397,40 @@ namespace GTAVRidingCompanion
             await ReloadSettings();
         }
 
+        static string TeleportBlockText(string code)
+        {
+            switch (code)
+            {
+                case "VALUE_NOT_ALLOWED": return "not during a route: choose Free ride first";
+                case "MOD_INACTIVE": return "activate GTBike V first";
+                case "GAME_NOT_IN_CONTROL": return "the game is paused or loading";
+                case "BRIDGE_BUSY": return "a teleport is in progress";
+                case "ADAPTER_STALE": return "the game is not sending data";
+                case "ADAPTER_ABSENT": return "GTA V is not running";
+                default: return Reasons.Text(code).TrimEnd('.');
+            }
+        }
+
+        /// <summary>P16: moves the rider (and the bike) to the clicked point; the game finds the ground and the nearest road.</summary>
+        async Task Teleport(double x, double y)
+        {
+            map.SetTarget(x, y);
+            try
+            {
+                var args = new Dictionary<string, object> { { "x", Math.Round(x, 1) }, { "y", Math.Round(y, 1) } };
+                var op = await Command("player.teleport", args, null, "Teleporting… the game is loading that area.", code =>
+                    code == "VALUE_NOT_ALLOWED" ? "You cannot teleport there (open water, or a route is loaded). You stay where you were."
+                    : code == "INTERNAL" ? "The game found no ground there in time, so you were put back. Try a spot closer to a road."
+                    : null);
+                if (op == null) return;
+                bool snapped = Json.Bool(Json.Obj(op, "observed"), "snappedToRoad") == true;
+                Done(snapped ? "Teleported to the nearest road." : "Teleported.");
+                follow.Checked = true;
+                map.SetFollow(true);
+            }
+            finally { map.SetTarget(null, null); }
+        }
+
         async Task ReloadSettings()
         {
             BridgeClient c = client();
@@ -401,7 +441,7 @@ namespace GTAVRidingCompanion
         }
 
         /// <summary>Sends one command and follows its operation until the game confirms it (or not).</summary>
-        async Task<Dictionary<string, object>> Command(string type, Dictionary<string, object> args, string revision, string pendingText)
+        async Task<Dictionary<string, object>> Command(string type, Dictionary<string, object> args, string revision, string pendingText, Func<string, string> explain = null)
         {
             BridgeClient c = client();
             string instance = Json.Str(state, "adapterInstanceId");
@@ -427,7 +467,7 @@ namespace GTAVRidingCompanion
                 string status = Json.Str(op, "status");
                 if (result.Ok && status == "applied") return op;
                 string code = !result.Ok ? result.ErrorCode : Json.Str(Json.Obj(op, "error"), "code") ?? (status == "unknown" ? "OPERATION_UNKNOWN" : "INTERNAL");
-                Fail(Reasons.Text(code));
+                Fail((explain == null ? null : explain(code)) ?? Reasons.Text(code));
                 return null;
             }
             catch (Exception error) { Fail(error.Message); return null; }

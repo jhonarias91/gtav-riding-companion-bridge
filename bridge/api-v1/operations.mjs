@@ -21,7 +21,9 @@ export const EVIDENCE_TIMEOUT_MS = {
   'devices.disconnect': 8_000,
   'activities.finish': 15_000,
   'workouts.select': 8_000,
+  'player.teleport': 15_000, // The adapter gives up after ~12 s of streaming and puts the rider back.
 };
+const TELEPORT_FAILURES = new Set(['VALUE_NOT_ALLOWED', 'GAME_NOT_IN_CONTROL', 'INTERNAL']);
 
 const sameRoute = (a, b) => (a === null && b === null) || (a !== null && b !== null && a.id === b.id && a.loop === b.loop && a.reverse === b.reverse);
 
@@ -109,6 +111,18 @@ const EVIDENCE = {
     if (!progress || progress.name !== base.workoutName || progress.finished === true || state.workout.present !== true) return null;
     if (base.workoutGeneration !== null && progress.generation === base.workoutGeneration) return null;
     return { status: 'applied', observed: { workoutName: progress.name, started: progress.started === true, inCountdown: progress.inCountdown === true, sequence: state.sequence } };
+  },
+  // The adapter reports the outcome of its own multi-Tick job under the same requestId. 'failed' leaves the rider where
+  // they were (open water, no ground found in time, rider gone).
+  'player.teleport': (args, base, { snap }) => {
+    const t = snap?.fresh ? snap.raw.teleport : null;
+    if (!t || t.requestId !== base.requestId) return null;
+    if (t.status === 'done' && [t.x, t.y, t.z].every(Number.isFinite)) {
+      const r = v => Math.round(v * 100) / 100;
+      return { status: 'applied', observed: { x: r(t.x), y: r(t.y), z: r(t.z), snappedToRoad: t.snappedToRoad === true } };
+    }
+    if (t.status === 'failed') return { status: 'failed', observed: { moved: false }, code: TELEPORT_FAILURES.has(t.reasonCode) ? t.reasonCode : 'INTERNAL' };
+    return null;
   },
   'appearance.select': (args, base, { settings }) => {
     if (!settings) return null;

@@ -172,6 +172,10 @@ export function capabilityReasons(snap, catalog) {
       ?? (raw.isDtOk !== true ? 'MOD_INACTIVE' : raw.workouts?.ready !== true ? 'CAPABILITY_UNAVAILABLE'
         : !inControl(raw) ? 'GAME_NOT_IN_CONTROL' : null),
     'activities.finish': snap ? finishReason(snap) : 'ADAPTER_ABSENT',
+    // P16 (PC window only): GTA natives move the rider; refused during a course, which it would break.
+    'player.teleport': writeBlock(snap, 'player.teleport')
+      ?? (raw.isDtOk !== true ? 'MOD_INACTIVE' : !inControl(raw) ? 'GAME_NOT_IN_CONTROL' : raw.activeRoute ? 'VALUE_NOT_ALLOWED'
+        : raw.teleport?.status === 'running' ? 'BRIDGE_BUSY' : null),
   };
   return reasons;
 }
@@ -190,6 +194,7 @@ const CATALOG = [
   ['devices.assign', 'devices.phoneScan', 'async'],
   ['devices.disconnect', 'devices.phoneScan', 'async'],
   ['workouts.select', 'training.select', 'async'],
+  ['player.teleport', 'map.gameWorld', 'async'],
   // P15: allowlisted GTBikeVConfig.ini options, edited only with GTA V closed; they apply when the game starts.
   ['modConfig.read', 'modConfig.options', null],
   ['modConfig.update', 'modConfig.options', 'scriptReload'],

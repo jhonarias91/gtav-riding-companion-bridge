@@ -28,6 +28,7 @@ namespace CompanionBridge.V1
         private GtbikeV1Extensions extensions;
         private GtbikeV1More more;
         private GtbikeV1World world;
+        private readonly GtbikeV1Teleport teleport = new GtbikeV1Teleport(); // P16: PC map right-click, GTA natives only.
         private Dictionary<string, object> lastSnapshot;
         private DateTime nextLookupUtc = DateTime.MinValue;
         private long sequence;
@@ -39,6 +40,7 @@ namespace CompanionBridge.V1
             Directory.CreateDirectory(commandsDirectory);
             Interval = 250;
             Tick += OnTick;
+            Aborted += delegate { try { teleport.Abort(); } catch (Exception) { } }; // Script reload: never leave the rider frozen.
         }
 
         private void OnTick(object sender, EventArgs args)
@@ -47,6 +49,8 @@ namespace CompanionBridge.V1
             Dictionary<string, object> snapshot;
             string gameControl = GameControl();
             DateTime now = DateTime.UtcNow;
+            try { teleport.Step(); } // A running teleport advances every Tick; it never touches the mod.
+            catch (Exception e) { Log(e); }
             try
             {
                 FindMod(now);
@@ -67,6 +71,8 @@ namespace CompanionBridge.V1
                 }
                 if (binding != null && binding.CanSetActive && world != null)
                     world.Capture(snapshot, now, () => ReadPlayerPosition(gameControl), value => MapPoint((Vector3)value));
+                if (binding != null && extensions != null && (string)snapshot["binding"] != "incompatible")
+                    ((List<string>)snapshot["commands"]).Add("player.teleport");
             }
             catch (Exception e)
             {
@@ -82,6 +88,7 @@ namespace CompanionBridge.V1
             snapshot["sequence"] = ++sequence;
             snapshot["capturedAtUtc"] = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
             snapshot["gameControl"] = gameControl;
+            snapshot["teleport"] = teleport.Report; // Evidence for player.teleport: requestId + running|done|failed.
             lastSnapshot = snapshot;
             Dictionary<string, object> toWrite = snapshot;
             Dictionary<string, object> catalog = extensions == null ? null : extensions.TakeCatalog();
@@ -226,6 +233,8 @@ namespace CompanionBridge.V1
             Dictionary<string, object> metrics = Get(lastSnapshot, "metrics") as Dictionary<string, object>;
             object speed = metrics == null ? null : Get(metrics, "speedMps");
             double? speedMps = speed == null ? (double?)null : Convert.ToDouble(speed, CultureInfo.InvariantCulture);
+            // P16: only the PC window may send it (the bridge refuses phones). Blocked during a course: it would break it.
+            if (type == "player.teleport") return teleport.Start(id, args, dtOk, gameControl, Get(lastSnapshot, "activeRoute") != null);
             if (type == "routes.apply")
             {
                 if (args.Count != 3 || !args.ContainsKey("routeId") || !(Get(args, "loop") is bool) || !(Get(args, "reverse") is bool)) return Rejected("INVALID_REQUEST");

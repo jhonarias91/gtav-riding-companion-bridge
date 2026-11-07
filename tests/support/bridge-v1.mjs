@@ -38,7 +38,7 @@ export class FakeAdapter {
     this.raw = {
       schema: 'gtbikev-adapter-v1', modLoaded: true, modVersion: '0.8.0.4', binding: 'compatible', bindingProfile: 'gtbikev-0804', bindingIssues: [],
       gameControl: 'inControl', isDtOk: true, modLayer: 'dataReady', receivers: { ant: 'ready', ble: 'ready' }, sport: 'cycling',
-      commands: ['mod.setActive', 'routes.apply', 'routes.preview', 'ui.openPanel', 'ui.closePanel', 'profile.update', 'rideSettings.update', 'appearance.select', 'devices.configure', 'devices.assign', 'devices.disconnect', 'activities.finish', 'workouts.select'],
+      commands: ['mod.setActive', 'routes.apply', 'routes.preview', 'ui.openPanel', 'ui.closePanel', 'profile.update', 'rideSettings.update', 'appearance.select', 'devices.configure', 'devices.assign', 'devices.disconnect', 'activities.finish', 'workouts.select', 'player.teleport'],
       metrics: { powerW: 180, speedMps: 0, speedVirtual: true, cadenceRpm: 85, heartRateBpm: null, distanceM: 120.5, ridingTimeMs: 60000, slopeFraction: 0.01, windSpeedMps: 0, windDirRad: 0 },
       activity: { movingTimeMs: 55000, elevationGainM: 3, elevationLossM: 1, workoutPresent: false, workoutFinished: null },
       sensors: [{ role: 'power', present: true, source: 'ANT', deviceId: '54321', sensorType: 'FEC' }, { role: 'heartRate', present: false, source: 'unknown', deviceId: null, sensorType: 'unknown' }],
@@ -60,7 +60,10 @@ export class FakeAdapter {
       workouts: { ready: true },
       workoutProgress: null,
       activities: { saveEnabled: true, activityDistanceM: 120.5, lastSaved: null },
+      p8Map: { position: { x: 100, y: -200, z: 30, heading: 0 }, route: null },
+      teleport: null,
     };
+    this.teleportOutcome = 'done'; // 'done' | 'water' (GtbikeV1Teleport puts the rider back) | 'running' (never settles)
     this.workouts = {
       catalogRevision: 'workouts-a1',
       ftpReferenceW: 230,
@@ -171,6 +174,15 @@ export class FakeAdapter {
     if (cmd.type === 'devices.assign') this.assignDevice(a);
     if (cmd.type === 'devices.disconnect') this.disconnectDevice(a);
     if (cmd.type === 'activities.finish') this.pendingSave = true;
+    if (cmd.type === 'player.teleport') {
+      // Mirrors GtbikeV1Teleport: the outcome is reported under the command's requestId once the ground was found.
+      if (this.teleportOutcome === 'running') this.raw.teleport = { requestId: cmd.requestId, status: 'running' };
+      else if (this.teleportOutcome === 'water') this.raw.teleport = { requestId: cmd.requestId, status: 'failed', reasonCode: 'VALUE_NOT_ALLOWED' };
+      else {
+        this.raw.teleport = { requestId: cmd.requestId, status: 'done', x: a.x + 3, y: a.y - 4, z: 31.5, snappedToRoad: true };
+        this.raw.p8Map.position = { x: a.x + 3, y: a.y - 4, z: 31.5, heading: 90 };
+      }
+    }
     if (cmd.type === 'workouts.select') {
       // Mirrors GTBikeVScript.OnWorkoutSelected: the current activity gets the (reset) workout, replacing any running
       // one; its countdown starts. A new Workout object means a new generation (GtbikeV1More).

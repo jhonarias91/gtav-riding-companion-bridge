@@ -1,0 +1,10 @@
+{
+  "requestId": "6e1f2a3b-4c5d-4e6f-9a7b-8c9d0e1f2a3b",
+  "adapterInstanceId": "adapter-5b1d",
+  "type": "player.teleport",
+  "expectedRevision": null,
+  "args": {
+    "x": -1234.5,
+    "y": 2750.25
+  }
+}

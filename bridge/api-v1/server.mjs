@@ -8,13 +8,13 @@ import { join } from 'node:path';
 import { NativePairing } from './auth.mjs';
 import { AdapterLink } from './adapter-link.mjs';
 import { OperationStore } from './operations.mjs';
-import { validateCommand, CommandError, ROLE_SENSOR_TYPES } from './validate.mjs';
+import { validateCommand, CommandError, ROLE_SENSOR_TYPES, DESKTOP_ONLY_COMMANDS } from './validate.mjs';
 import { toState, toCapabilities, capabilityReasons, toRoutesPage, toRouteDetail, toPreview, toSettings, toDevices, toWorkoutPlans, toWorkoutList, toWorkoutDetail, toWorkoutProgress } from './normalize.mjs';
 import { ActivityLibrary } from './activities.mjs';
 import { toMap, toRiders, worldReasons } from './world.mjs';
 import { ModConfigStore, ModConfigError, gtaRunning } from './mod-config.mjs';
 
-export const API_MINOR = 11; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID.
+export const API_MINOR = 12; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID, 12: P16 PC teleport.
 export const BRIDGE_VERSION = '0.5.1-dev';
 const MAX_BODY = 64 * 1024;
 const SERVER_CODES = new Set(['INVALID_REQUEST', 'PAYLOAD_TOO_LARGE', 'AUTH_REQUIRED', 'FORBIDDEN_SCOPE', 'PAIRING_PIN_INVALID', 'PAIRING_PIN_EXPIRED', 'RATE_LIMITED', 'NOT_FOUND', 'ADAPTER_ABSENT', 'ADAPTER_STALE', 'UNSUPPORTED_VERSION', 'CAPABILITY_UNAVAILABLE', 'REVISION_CONFLICT', 'INSTANCE_CHANGED', 'MOD_TRANSITION_IN_PROGRESS', 'GAME_NOT_IN_CONTROL', 'DEVICE_CHANGED', 'WORKOUT_PC_CONTROL_REQUIRED', 'SAVE_TOO_SHORT', 'OPERATION_UNKNOWN', 'FIT_INVALID', 'ASSET_UNAVAILABLE', 'MOD_INACTIVE', 'MOD_NOT_LOADED', 'PANEL_CLOSED', 'RIDER_MOVING', 'AUTOPILOT_ON', 'VALUE_OUT_OF_RANGE', 'VALUE_NOT_ALLOWED', 'BRIDGE_BUSY', 'GAME_RUNNING', 'INTERNAL']);
@@ -55,6 +55,8 @@ function toDesktopWorld(docs) {
     adapter: docs.state.layers.adapter, mod: docs.state.layers.mod, gameControl: docs.state.layers.gameControl,
     sequence: raw?.sequence ?? null, activeRoute: docs.state.activeRoute, position,
     route: waypoints.length ? { reverse: ((map.route.courseKey ?? 0) & 0x8000) !== 0, waypoints } : null,
+    // P16: why the map's "Teleport here" is unavailable right now (null = allowed).
+    teleport: { reasonCode: capabilityReasons(docs.snap, docs.catalog)['player.teleport'] },
   };
 }
 
@@ -203,7 +205,7 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
     }
   }
 
-  async function handleCommand(req, res) {
+  async function handleCommand(req, res, desktop) {
     let command;
     try {
       command = validateCommand(await readBody(req));
@@ -211,6 +213,8 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
       if (e instanceof CommandError) return fail(res, e.code, e.status, { details: e.details ?? {} });
       throw e;
     }
+    // P16: moving the rider is for the PC window only (loopback desktop token), never for a paired phone.
+    if (DESKTOP_ONLY_COMMANDS.has(command.type) && !desktop) return fail(res, 'FORBIDDEN_SCOPE', 403, { details: { field: 'type' } });
     const existing = operations.get(command.requestId);
     if (existing) return send(res, 200, existing); // Same requestId never runs twice.
     if (busy) return fail(res, 'BRIDGE_BUSY', 409);
@@ -233,7 +237,7 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
       if (ack.status !== 'dispatched') return send(res, 202, operations.unknown(command.requestId));
       const workoutName = command.type === 'workouts.select' ? toWorkoutDetail(docs.workouts, command.args.workoutId)?.workout.name ?? null : null;
       const workoutGeneration = docs.snap.raw.workoutProgress?.generation ?? null; // the selection the PC had before
-      operations.pending(command.requestId, { sessionGeneration: docs.state.sessionGeneration, workoutName, workoutGeneration });
+      operations.pending(command.requestId, { requestId: command.requestId, sessionGeneration: docs.state.sessionGeneration, workoutName, workoutGeneration });
       operations.observe(await documents());
       return send(res, 202, operations.get(command.requestId));
     } finally {
@@ -282,7 +286,7 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
         if (tokenHash) await pairing.revoke(tokenHash);
         return send(res, 204, null);
       }
-      if (route === 'POST /api/v1/commands') return await handleCommand(req, res);
+      if (route === 'POST /api/v1/commands') return await handleCommand(req, res, desktop);
       if (path === '/api/v1/mod-config' && (req.method === 'GET' || req.method === 'POST')) {
         try {
           if (req.method === 'GET') return send(res, 200, await gameConfig.document());
@@ -316,8 +320,10 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
         const folder = (await library.root()) ? null : 'CAPABILITY_UNAVAILABLE';
         const config = await gameConfig.document().catch(() => null);
         const configRead = config?.available ? null : 'CAPABILITY_UNAVAILABLE';
-        return send(res, 200, toCapabilities(docs.snap, docs.catalog, world, { 'activities.list': folder, 'activities.download': folder,
-          'modConfig.read': configRead, 'modConfig.update': configRead ?? (config.gameRunning ? 'GAME_RUNNING' : null) }));
+        const extra = { 'activities.list': folder, 'activities.download': folder,
+          'modConfig.read': configRead, 'modConfig.update': configRead ?? (config.gameRunning ? 'GAME_RUNNING' : null) };
+        if (!desktop) extra['player.teleport'] = 'FORBIDDEN_SCOPE'; // PC window only.
+        return send(res, 200, toCapabilities(docs.snap, docs.catalog, world, extra));
       }
       if (path === '/api/v1/map' || path === '/api/v1/riders') {
         const map = path === '/api/v1/map';

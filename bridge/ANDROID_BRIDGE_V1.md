@@ -87,7 +87,11 @@ Bot and traffic editing are also disabled. Settings are read from the mod's cach
 
 `GET /api/v1/mod-config` returns an allowlisted subset of GTBike V's configuration file ([main] gameplay keys, [network] telemetry and multiplayer on/off), with `revision`, `gameRunning` and `editable` (contract: `contracts/v1/mod-config.schema.json`). `POST /api/v1/mod-config` with `{expectedRevision, options:{...changed fields}}` writes only those lines, keeps every other line as it was and stores a backup (last 10) in `bridge-v1/mod-config-backups`. It is refused with `GAME_RUNNING` while GTA V runs (process check or a fresh adapter), `REVISION_CONFLICT` if the file changed, `INVALID_REQUEST`/`VALUE_OUT_OF_RANGE` for anything outside the allowlist. Not a command and never through the adapter; changes apply when the game starts. The bridge finds the file from `--mod-config PATH` (the PC window passes the real Documents folder), else next to the Activities folder the adapter reported, else `%USERPROFILE%DocumentsRockstar GamesGTA VModSettings`. Arbitrary INI writes (`config.write`) stay forbidden.
 
-The PC window authenticates with a per-run desktop token that only works from 127.0.0.1 and also reads `GET /api/v1/desktop/world` (raw GTA coordinates and heading for its own map).
+The PC window authenticates with a per-run desktop token that only works from 127.0.0.1 and also reads `GET /api/v1/desktop/world` (raw GTA coordinates and heading for its own map, plus `teleport.reasonCode`).
+
+## P16 · Teleport from the PC map
+
+`player.teleport` `{x, y}` (GTA world metres, |x|,|y| <= 10000, `expectedRevision: null`) is accepted only with the PC window's desktop token; a paired phone gets `FORBIDDEN_SCOPE` (and sees the capability as unavailable with that reason). Allowed with the mod active, the game in control and no course loaded (`VALUE_NOT_ALLOWED` otherwise); one at a time (`BRIDGE_BUSY`). The adapter (`GtbikeV1Teleport.cs`, GTA natives only, nothing of GTBike V) freezes the rider or the bike they ride above the target, streams collision, puts them on the ground and on the nearest road within 60 m when there is one. Open water fails with `VALUE_NOT_ALLOWED` and no ground after about 12 s fails with `INTERNAL`; both put the rider back where they were. Evidence: the snapshot's `teleport` {requestId, status, x, y, z, snappedToRoad, reasonCode}; `applied` observes the final point (timeout 15 s).
 
 ## Diagnostics and acceptance checks
 

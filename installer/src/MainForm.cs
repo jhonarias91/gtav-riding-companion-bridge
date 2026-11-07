@@ -1,4 +1,4 @@
-// Main window: Phone (bridge + QR pairing), Mod (settings + live map) and Setup (install, repair, uninstall).
+// Main window: Phone (bridge + QR pairing), Mod (settings + live map), Setup (install, repair, uninstall) and Web (the PWA).
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,7 +15,7 @@ namespace GTAVRidingCompanion
     {
         readonly TabControl tabs = new TabControl { Dock = DockStyle.Fill, Padding = new Point(18, 6) };
         readonly TabPage phoneTab = new TabPage("Phone"), modTab = new TabPage("Mod"), routesTab = new TabPage("Routes"), trainingTab = new TabPage("Training"),
-            sensorsTab = new TabPage("Sensors"), activitiesTab = new TabPage("Activities"), optionsTab = new TabPage("Game options"), setupTab = new TabPage("Setup");
+            sensorsTab = new TabPage("Sensors"), activitiesTab = new TabPage("Activities"), optionsTab = new TabPage("Game options"), setupTab = new TabPage("Setup"), webTab = new TabPage("Web");
         readonly Label headerStatus = new Label { AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225), Font = new Font("Segoe UI", 10f), Anchor = AnchorStyles.Right };
         readonly Label footer = new Label { Dock = DockStyle.Fill, ForeColor = Ui.Muted, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0) };
         // Phone tab
@@ -32,6 +32,7 @@ namespace GTAVRidingCompanion
         readonly Label installState = new Label { AutoSize = true, MaximumSize = new Size(760, 0), Margin = new Padding(0, 10, 0, 0) };
         readonly Label versionInfo = new Label { AutoSize = true, ForeColor = Ui.Muted, Margin = new Padding(0, 0, 0, 10) };
         readonly ModPanel modPanel;
+        readonly WebPanel webPanel;
         readonly Dictionary<TabPage, BridgePanel> panels = new Dictionary<TabPage, BridgePanel>();
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 1000 };
         readonly bool afterInstall;
@@ -41,6 +42,8 @@ namespace GTAVRidingCompanion
         string lastError = "";
         bool installing;
         int pairedCount;
+        BridgeLink bridgeLink;
+        bool portBusy;
 
         internal MainForm(bool afterInstall)
         {
@@ -71,13 +74,15 @@ namespace GTAVRidingCompanion
             panels[optionsTab] = new GameOptionsPanel(() => client);
             foreach (var pair in panels) pair.Key.Controls.Add(pair.Value);
             BuildSetupTab();
-            tabs.TabPages.AddRange(new[] { phoneTab, modTab, routesTab, trainingTab, sensorsTab, activitiesTab, optionsTab, setupTab });
+            webPanel = new WebPanel(CurrentBridgeLink, StartBridge, RefreshPairing);
+            webTab.Controls.Add(webPanel);
+            tabs.TabPages.AddRange(new[] { phoneTab, modTab, routesTab, trainingTab, sensorsTab, activitiesTab, optionsTab, setupTab, webTab });
             foreach (TabPage page in tabs.TabPages) page.BackColor = Ui.Surface;
             tabs.SelectedIndexChanged += (s, e) => ActivateTab();
 
             timer.Tick += (s, e) => Poll();
             Shown += (s, e) => OnShown();
-            FormClosing += (s, e) => { DeactivateTabs(); StopBridge(); };
+            FormClosing += (s, e) => { DeactivateTabs(); webPanel.StopServer(); StopBridge(); };
         }
 
         /// <summary>All sizes of the app icon (embedded .ico), so the taskbar and title bar each get a sharp one.</summary>
@@ -149,7 +154,12 @@ namespace GTAVRidingCompanion
 
             var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 12, 0, 0) };
             start.Click += (s, e) => StartBridge();
-            stop.Click += (s, e) => { StopBridge(); footer.Text = "Bridge stopped. The phone cannot connect until you start it again."; };
+            stop.Click += (s, e) =>
+            {
+                StopBridge();
+                footer.Text = "Bridge stopped. The phone cannot connect until you start it again.";
+                FreeBridgePort("Stop it so the bridge can start again?");
+            };
             refresh.Click += (s, e) => RefreshPairing();
             var log = Ui.Secondary("Open bridge log");
             log.Width = 150;
@@ -205,7 +215,8 @@ namespace GTAVRidingCompanion
             if (Installer.IsInstalled)
             {
                 tabs.SelectedTab = afterInstall ? phoneTab : (IsNewerSetup ? setupTab : phoneTab);
-                StartBridge();
+                if (IsNewerSetup) footer.Text = NewerSetupHint;
+                else StartBridge();
                 if (afterInstall) footer.Text = "Installed. Scan the QR code with your phone, then use the Mod tab while you ride.";
             }
             else
@@ -218,6 +229,9 @@ namespace GTAVRidingCompanion
 
         bool RunningInstalledCopy { get { return String.Equals(Path.GetFullPath(Application.ExecutablePath), Paths.InstalledExe, StringComparison.OrdinalIgnoreCase); } }
         bool IsNewerSetup { get { return !RunningInstalledCopy && Installer.InstalledVersion != BuildInfo.Version; } }
+        // A newer setup passes options the installed (older) bridge does not know, so it never starts that bridge.
+        string NewerSetupHint { get { return "This setup is v" + BuildInfo.Version + "; the installed app is " + (Installer.InstalledVersion == null ? "an earlier version" : "v" + Installer.InstalledVersion)
+            + ". Press Update on the Setup tab first, then the bridge starts."; } }
 
         void Detect(bool userAsked)
         {
@@ -306,10 +320,12 @@ namespace GTAVRidingCompanion
             string node = Path.Combine(Paths.AppDir, "node.exe");
             string script = Path.Combine(Paths.AppDir, "bridge-v1.mjs");
             if (!File.Exists(node) || !File.Exists(script)) { footer.Text = "Install first (Setup tab) to start the bridge."; UpdateButtons(); return; }
+            if (IsNewerSetup) { tabs.SelectedTab = setupTab; footer.Text = NewerSetupHint; UpdateButtons(); return; }
+            if (!FreeBridgePort("Stop it and start the bridge?")) { UpdateButtons(); return; }
             try
             {
                 if (File.Exists(Paths.StatusFile)) File.Delete(Paths.StatusFile);
-                statusStamp = DateTime.MinValue; lastError = ""; client = null;
+                statusStamp = DateTime.MinValue; lastError = ""; client = null; bridgeLink = null;
                 var info = new ProcessStartInfo(node, "\"" + script + "\" --desktop-status-file \"" + Paths.StatusFile + "\" --mod-config \"" + GameOptionsPanel.ModConfigPath + "\"");
                 info.WorkingDirectory = Paths.AppDir; info.UseShellExecute = false; info.CreateNoWindow = true;
                 info.RedirectStandardInput = true; info.RedirectStandardOutput = true; info.RedirectStandardError = true;
@@ -349,9 +365,48 @@ namespace GTAVRidingCompanion
             lock (logLock) { try { File.AppendAllText(Paths.BridgeLog, line + Environment.NewLine); } catch (IOException) { } }
         }
 
+        /// <summary>Port, transport and current pairing code of the running bridge, for the Web tab.</summary>
+        BridgeLink CurrentBridgeLink()
+        {
+            var known = bridgeLink;
+            bool running = bridge != null && !bridge.HasExited;
+            if (known == null) return new BridgeLink { Running = false };
+            return new BridgeLink { Running = running, Port = known.Port, Https = known.Https, Pin = known.Pin, PinExpiresUtc = known.PinExpiresUtc };
+        }
+
+        /// <summary>When another process holds the bridge port (an old bridge left running, for example), offers to end it.
+        /// Returns true when the port is free.</summary>
+        bool FreeBridgePort(string question)
+        {
+            var users = PortOwner.Find(Installer.BridgePort);
+            portBusy = users.Count > 0;
+            if (users.Count == 0) return true;
+            var answer = MessageBox.Show(this, "TCP port " + Installer.BridgePort + " is already in use by:\n\n"
+                + String.Join("\n\n", users.Select(u => u.Describe()).ToArray()) + "\n\n" + question
+                + "\n\nOnly do this if it is not something else you need: the process is ended without saving.",
+                "Bridge port in use", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+            if (answer != DialogResult.Yes) { footer.Text = "TCP port " + Installer.BridgePort + " is in use by " + users[0].Name + " (PID " + users[0].Pid + "). Press Stop to end it."; return false; }
+            Cursor = Cursors.WaitCursor;
+            string problem;
+            try { problem = PortOwner.Free(Installer.BridgePort, users); }
+            finally { Cursor = Cursors.Default; }
+            portBusy = problem != null;
+            if (problem != null)
+            {
+                MessageBox.Show(this, "The port could not be freed:\n\n" + problem + "\n\nIf it is an administrator process, close it from Task Manager.",
+                    "Bridge port in use", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                footer.Text = "TCP port " + Installer.BridgePort + " is still in use.";
+                return false;
+            }
+            footer.Text = "Freed TCP port " + Installer.BridgePort + ".";
+            UpdateButtons();
+            return true;
+        }
+
         void StopBridge()
         {
             client = null;
+            bridgeLink = null;
             if (bridge != null)
             {
                 try { if (!bridge.HasExited) bridge.Kill(); bridge.WaitForExit(3000); } catch (Exception) { }
@@ -374,11 +429,15 @@ namespace GTAVRidingCompanion
         {
             if (!installing && tabs.SelectedTab == setupTab) UpdateChecks();
             UpdateHeader();
-            if (bridge == null) { UpdateButtons(); return; }
+            if (bridge == null) { portBusy = Installer.IsInstalled && PortOwner.Find(Installer.BridgePort).Count > 0; UpdateButtons(); return; }
             if (bridge.HasExited)
             {
                 footer.Text = "The bridge stopped (code " + bridge.ExitCode + "). " + lastError;
-                StopBridge(); return;
+                StopBridge();
+                portBusy = PortOwner.Find(Installer.BridgePort).Count > 0;
+                if (portBusy) footer.Text += " Port " + Installer.BridgePort + " is held by another process: press Stop to end it.";
+                UpdateButtons();
+                return;
             }
             if (!File.Exists(Paths.StatusFile)) return;
             DateTime stamp = File.GetLastWriteTimeUtc(Paths.StatusFile);
@@ -392,8 +451,12 @@ namespace GTAVRidingCompanion
                 pairedCount = paired.Count;
                 pairingCode.Text = FormatPin(Json.Str(data, "pin"));
                 DateTime expires;
-                pairingExpiry.Text = DateTime.TryParse(Json.Str(data, "pinExpiresAtUtc"), null, System.Globalization.DateTimeStyles.AdjustToUniversal, out expires)
-                    ? "Valid until " + expires.ToLocalTime().ToString("HH:mm") + " · press New QR code for a fresh one" : "";
+                bool hasExpiry = DateTime.TryParse(Json.Str(data, "pinExpiresAtUtc"), null, System.Globalization.DateTimeStyles.AdjustToUniversal, out expires);
+                pairingExpiry.Text = hasExpiry ? "Valid until " + expires.ToLocalTime().ToString("HH:mm") + " · press New QR code for a fresh one" : "";
+                int bridgePort;
+                bridgeLink = new BridgeLink { Running = true, Https = Json.Str(data, "transport") != "http", Pin = Json.Str(data, "pin"),
+                    PinExpiresUtc = hasExpiry ? expires : DateTime.MinValue,
+                    Port = Int32.TryParse(Convert.ToString(Json.Get(data, "port"), System.Globalization.CultureInfo.InvariantCulture), out bridgePort) ? bridgePort : Installer.BridgePort };
                 details.Text = "Address:   " + (hosts.Length == 0 ? "no private network address found" : String.Join(", ", hosts)) + "\r\n"
                     + "Port:      " + Json.Get(data, "port") + " (" + (Json.Str(data, "transport") == "http" ? "HTTP, development" : "HTTPS") + ")\r\n"
                     + "Bridge ID: " + Json.Str(data, "bridgeId") + "\r\n"
@@ -431,7 +494,7 @@ namespace GTAVRidingCompanion
         {
             bool running = bridge != null && !bridge.HasExited;
             start.Enabled = !running && Installer.IsInstalled && !installing;
-            stop.Enabled = running;
+            stop.Enabled = running || portBusy;
             refresh.Enabled = running;
             UpdateHeader();
         }

@@ -1,6 +1,6 @@
 {
   "name": "gtav-riding-companion-bridge",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Windows PC bridge and GTA V adapter for the GTAV Riding Companion Android app",
   "type": "module",

@@ -709,6 +709,47 @@
         "/activity/source": "derived-records"
       },
       "why": "v1 summaries come from the FIT session only"
+    },
+    {
+      "file": "valid/command_player_teleport.json",
+      "schema": "command",
+      "valid": true
+    },
+    {
+      "derived": "command_player_teleport_revision",
+      "base": "valid/command_player_teleport.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/expectedRevision": "state-0123456789ab"
+      }
+    },
+    {
+      "derived": "command_player_teleport_out_of_map",
+      "base": "valid/command_player_teleport.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/x": 25000
+      }
+    },
+    {
+      "derived": "command_player_teleport_string",
+      "base": "valid/command_player_teleport.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/y": "2750"
+      }
+    },
+    {
+      "derived": "command_player_teleport_z",
+      "base": "valid/command_player_teleport.json",
+      "schema": "command",
+      "valid": false,
+      "set": {
+        "/args/z": 30
+      }
     }
   ]
 }

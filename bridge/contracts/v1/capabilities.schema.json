@@ -41,6 +41,7 @@
         "workouts.read",
         "workouts.observe",
         "workouts.select",
+        "player.teleport",
         "activities.list",
         "activities.download",
         "activities.finish",

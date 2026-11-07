@@ -1,5 +1,5 @@
 // Zoomable GTA V map: mouse wheel zooms around the cursor, left drag pans, double-click zooms in, right-click offers
-// centring and copying coordinates. World <-> image uses the linear calibration in gta-map.calibration.json (no rotation: the
+// teleporting the rider there (P16, player.teleport), centring and copying coordinates. World <-> image uses the linear calibration in gta-map.calibration.json (no rotation: the
 // satellite image is north-up). Downscaled copies keep painting fast at low zoom.
 using System;
 using System.Collections.Generic;
@@ -57,6 +57,8 @@ namespace GTAVRidingCompanion
         readonly ContextMenuStrip menu = new ContextMenuStrip();
         readonly ToolStripMenuItem copyItem = new ToolStripMenuItem("Copy coordinates");
         readonly ToolStripMenuItem centerItem = new ToolStripMenuItem("Center on rider");
+        readonly ToolStripMenuItem teleportItem = new ToolStripMenuItem("Teleport here") { Font = new Font("Segoe UI", 9f, FontStyle.Bold) };
+        readonly ToolStripSeparator teleportSeparator = new ToolStripSeparator();
         Image full;
         readonly List<KeyValuePair<float, Bitmap>> levels = new List<KeyValuePair<float, Bitmap>>(); // scale -> copy
         int imageWidth, imageHeight;
@@ -69,8 +71,15 @@ namespace GTAVRidingCompanion
         PointF? rider;           // image coordinates
         float riderHeading;      // GTA heading in degrees (0 = north, counter-clockwise)
         List<PointF> route = new List<PointF>();
+        PointF? target;          // image coordinates of a teleport in progress
 
         public event Action FollowChanged;
+        /// <summary>World X/Y (metres) the user chose with "Teleport here".</summary>
+        public event Action<double, double> TeleportRequested;
+        /// <summary>false hides "Teleport here" (bridge older than P16).</summary>
+        public bool TeleportVisible { get; set; }
+        /// <summary>Why "Teleport here" is unavailable right now; null when it is allowed.</summary>
+        public string TeleportBlock { get; set; }
         public bool Follow { get; private set; }
         public string Overlay { get; set; }
 
@@ -87,7 +96,11 @@ namespace GTAVRidingCompanion
                 catch (Exception) { }
             };
             centerItem.Click += (s, e) => SetFollow(true);
-            menu.Items.AddRange(new ToolStripItem[] { centerItem, copyItem });
+            teleportItem.Click += (s, e) =>
+            {
+                if (TeleportRequested != null) TeleportRequested(calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y));
+            };
+            menu.Items.AddRange(new ToolStripItem[] { teleportItem, teleportSeparator, centerItem, copyItem });
         }
 
         /// <summary>Loads the image and builds the downscaled copies off the UI thread.</summary>
@@ -148,6 +161,13 @@ namespace GTAVRidingCompanion
         {
             route = new List<PointF>();
             if (points != null) foreach (var p in points) route.Add(calibration.ToImage(p.Key, p.Value));
+            Invalidate();
+        }
+
+        /// <summary>Marks where a teleport is going (null clears it).</summary>
+        public void SetTarget(double? x, double? y)
+        {
+            target = x.HasValue && y.HasValue ? (PointF?)calibration.ToImage(x.Value, y.Value) : null;
             Invalidate();
         }
 
@@ -239,6 +259,11 @@ namespace GTAVRidingCompanion
                 menuImagePoint = ToImage(e.Location);
                 copyItem.Text = String.Format(CultureInfo.InvariantCulture, "Copy coordinates  ({0:0}, {1:0})", calibration.WorldX(menuImagePoint.X), calibration.WorldY(menuImagePoint.Y));
                 centerItem.Enabled = rider.HasValue;
+                bool insideMap = menuImagePoint.X >= 0 && menuImagePoint.Y >= 0 && menuImagePoint.X <= imageWidth && menuImagePoint.Y <= imageHeight;
+                string block = !insideMap ? "outside the map" : TeleportBlock;
+                teleportItem.Visible = teleportSeparator.Visible = TeleportVisible;
+                teleportItem.Enabled = block == null;
+                teleportItem.Text = block == null ? "Teleport here" : "Teleport here (" + block + ")";
                 menu.Show(this, e.Location);
             }
         }
@@ -278,6 +303,7 @@ namespace GTAVRidingCompanion
                     g.DrawLines(pen, points);
                 }
             }
+            if (target.HasValue) DrawTarget(g, ToScreen(target.Value));
             if (rider.HasValue) DrawRider(g, ToScreen(rider.Value));
             DrawScale(g);
             if (!String.IsNullOrEmpty(Overlay)) Banner(g, Overlay);
@@ -317,6 +343,20 @@ namespace GTAVRidingCompanion
                 g.DrawPolygon(outline, arrow);
             }
             g.Restore(state);
+        }
+
+        static void DrawTarget(Graphics g, PointF p)
+        {
+            using (var shadow = new Pen(Color.FromArgb(160, 0, 0, 0), 5f))
+            using (var pen = new Pen(Color.FromArgb(255, 250, 204, 21), 2.5f))
+            {
+                foreach (var stroke in new[] { shadow, pen })
+                {
+                    g.DrawEllipse(stroke, p.X - 11, p.Y - 11, 22, 22);
+                    g.DrawLine(stroke, p.X - 17, p.Y, p.X - 5, p.Y); g.DrawLine(stroke, p.X + 5, p.Y, p.X + 17, p.Y);
+                    g.DrawLine(stroke, p.X, p.Y - 17, p.X, p.Y - 5); g.DrawLine(stroke, p.X, p.Y + 5, p.X, p.Y + 17);
+                }
+            }
         }
 
         void DrawScale(Graphics g)
