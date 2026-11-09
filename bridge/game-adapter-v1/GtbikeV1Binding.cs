@@ -37,6 +37,8 @@ namespace CompanionBridge.V1
         private readonly Type functionType;
         private readonly PropertyInfo devicePresent, deviceId, deviceSource, deviceSensorType;
         private readonly FieldInfo activateItem;
+        private readonly MethodInfo closeMenus;
+        private readonly FieldInfo menuAutoOpen;
 
         private object lastActivity;
         private long sessionGeneration;
@@ -90,6 +92,9 @@ namespace CompanionBridge.V1
 
             Type menus = typeOf("GTBikeV.UI.Menus");
             activateItem = menus == null ? null : menus.GetField("activateModMenuItem", S);
+            closeMenus = menus == null ? null : menus.GetMethod("CloseMenus", S, null, Type.EmptyTypes, null);
+            menuAutoOpen = menus == null ? null : menus.GetField("MenuAutoOpenStatus", S);
+            if (menuAutoOpen != null && menuAutoOpen.FieldType != typeof(bool)) menuAutoOpen = null;
             if (activateItem == null) missingRequired.Add("Menus.activateModMenuItem");
         }
 
@@ -195,7 +200,15 @@ namespace CompanionBridge.V1
             if (itemEnabled == null || !(bool)itemEnabled.GetValue(item, null)) return Ack("rejected", "CAPABILITY_UNAVAILABLE");
             MethodInfo onActivated = item.GetType().GetMethod("OnActivated", I, null, new Type[] { typeof(object) }, null);
             if (onActivated == null || HandlerCount(item) < 2) return Ack("rejected", "CAPABILITY_UNAVAILABLE");
+            if (enabled && (closeMenus == null || menuAutoOpen == null)) return Ack("rejected", "CAPABILITY_UNAVAILABLE");
             onActivated.Invoke(item, new object[] { item });
+            if (enabled)
+            {
+                // Same menu state as F5/MenuKey, using the mod's existing close path. Never toggle a hidden menu open.
+                // CloseMenus resets auto-open to Config.MenuAutoOpen; suppress it AFTER closing, as MenuKey does.
+                closeMenus.Invoke(null, null);
+                menuAutoOpen.SetValue(null, false);
+            }
             return Ack("dispatched", null);
         }
 

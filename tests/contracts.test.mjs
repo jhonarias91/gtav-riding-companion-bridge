@@ -13,7 +13,7 @@ const contracts = join(root, 'bridge', 'contracts', 'v1');
 const fixtures = join(root, 'bridge', 'fixtures', 'v1');
 const helpCatalog = process.env.GTBIKEV_HELP_CATALOG ?? join(root, '..', 'planning', 'android', 'AYUDA_CONTEXTUAL.md');
 const readJson = async path => JSON.parse(await readFile(path, 'utf8'));
-const schemaNames = ['common', 'hello', 'capabilities', 'state', 'command', 'operation', 'error', 'routes', 'route-preview', 'settings', 'devices', 'workouts', 'activities', 'map', 'riders', 'mod-config', 'addons', 'progress'];
+const schemaNames = ['common', 'hello', 'capabilities', 'state', 'command', 'operation', 'error', 'routes', 'route-preview', 'settings', 'devices', 'workouts', 'activities', 'map', 'riders', 'mod-config', 'addons', 'progress', 'trainer', 'trainer-config'];
 
 async function loadAjv() {
   const ajv = new Ajv2020({ strict: true, strictTypes: false, allErrors: true });

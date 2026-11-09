@@ -35,6 +35,9 @@ public static class BindingResolveCheck
         Console.WriteLine("P5-P7 commands: " + string.Join(", ", new System.Collections.Generic.List<string>(more.Commands()).ToArray()));
         if (more.Missing.Count > 0) Console.WriteLine("Missing P5-P7 members: " + string.Join(", ", new System.Collections.Generic.List<string>(more.Missing).ToArray()));
         bool ok = binding.BindingStatus == "compatible" && ext.Missing.Count == 0 && more.Missing.Count == 0;
+        string keyboardIssue = GtbikeV1KeyboardTrainer.VerifyBindings(typeOf);
+        Console.WriteLine("Keyboard trainer bindings: " + (keyboardIssue ?? "OK (metadata only)"));
+        ok &= keyboardIssue == null;
         ok &= CheckAssign(mod, more, "FEC", 0xC0FFEE000001UL, "BLE:FEC:C0FFEE000001");  // example trainer C0:FF:EE:00:00:01 (made-up address)
         ok &= CheckAssign(mod, more, "HR", 0xC0FFEE000002UL, "BLE:HR:C0FFEE000002");    // example chest strap C0:FF:EE:00:00:02
         ok &= CheckAssign(mod, more, "BTS", 0xC0FFEE000003UL, "BLE:BTS:C0FFEE000003");  // example STERZO C0:FF:EE:00:00:03

@@ -1,6 +1,8 @@
 // Adapter snapshot (gtbikev-adapter-v1) -> contract v1 documents. The adapter reports raw readings and native
 // menu availability; this module owns the contract rules: units, quality, reasons, revisions and capabilities.
 import { createHash } from 'node:crypto';
+import { toCamera } from './camera.mjs';
+import { toTrainer, gearShiftReason } from './trainer.mjs';
 import { DIFFICULTY_LEVELS, PROFILE_RANGES } from './validate.mjs';
 import { worldReasons } from './world.mjs';
 import { addonReasons, addonBlocksTeleport } from './addons.mjs';
@@ -47,6 +49,7 @@ function sensors(raw) {
 
 function sourceFor(key, raw, sensorList) {
   if (GAME_METRICS.has(key)) return 'game';
+  if (keyboardInput(raw.testInput) && ['powerW', 'cadenceRpm', 'speedMps'].includes(key)) return 'virtual';
   const role = { powerW: 'power', cadenceRpm: 'cadence', heartRateBpm: 'heartRate' }[key];
   if (key === 'speedMps') return raw.metrics?.speedVirtual === true ? 'virtual' : 'unknown';
   const sensor = sensorList.find(s => s.role === role && s.present);
@@ -55,6 +58,13 @@ function sourceFor(key, raw, sensorList) {
 
 const ABSENT_LAYERS = { adapter: 'absent', binding: 'unknown', mod: 'unknown', antReceiver: 'unknown', bleReceiver: 'unknown', gameControl: 'unknown' };
 
+// Additive, optional metadata: older adapters have no test input. This never manufactures physical sensor roles.
+function keyboardInput(value) {
+  if (value?.mode !== 'keyboard' || !Number.isInteger(value.targetPowerW) || value.targetPowerW < 50 || value.targetPowerW > 1000
+      || !Number.isInteger(value.cadenceRpm) || value.cadenceRpm < 0 || value.cadenceRpm > 254 || typeof value.pedalling !== 'boolean') return null;
+  return { mode: 'keyboard', targetPowerW: value.targetPowerW, cadenceRpm: value.cadenceRpm, pedalling: value.pedalling };
+}
+
 /** GET /api/v1/state. `last` keeps the previous fresh values so a stale snapshot shows them as stale, never live. */
 export function toState(snap, last = null) {
   if (!snap) {
@@ -62,10 +72,14 @@ export function toState(snap, last = null) {
     return {
       adapterInstanceId: null, sequence: null, stateRevision: null, capturedAtUtc: null, snapshotAgeMs: null, sessionGeneration: null,
       modVersion: null, bindingProfile: null, layers: { ...ABSENT_LAYERS }, sport: 'unknown', metrics, sensors: [],
-      workout: { present: null, finished: null }, activeRoute: null,
+      workout: { present: null, finished: null }, activeRoute: null, testInput: null,
     };
   }
   const { raw, ageMs, fresh } = snap;
+  const rawTestInput = keyboardInput(raw.testInput);
+  const invalidTestInput = raw.testInput != null && rawTestInput == null;
+  // The marker follows the values retained from the previous document when a snapshot goes stale.
+  const testInput = fresh ? rawTestInput : last ? last.testInput ?? null : rawTestInput;
   const sensorList = sensors(raw);
   const active = raw.isDtOk === true;
   const activity = raw.activity && typeof raw.activity === 'object' ? raw.activity : null;
@@ -77,7 +91,7 @@ export function toState(snap, last = null) {
   };
   const metrics = {};
   for (const [key, [min, max]] of Object.entries(METRICS)) {
-    const value = finite(values[key], min, max);
+    const value = invalidTestInput && ['powerW', 'speedMps', 'cadenceRpm'].includes(key) ? null : finite(values[key], min, max);
     if (fresh) {
       if (value !== null) metrics[key] = { value, quality: 'valid', source: sourceFor(key, raw, sensorList) };
       else {
@@ -108,7 +122,7 @@ export function toState(snap, last = null) {
   const ar = raw.activeRoute;
   const activeRoute = ar && ROUTE_ID.test(ar.id) ? { id: ar.id, loop: ar.loop === true, reverse: ar.reverse === true } : null;
   const sessionGeneration = opaque(raw.sessionGeneration, 'session-');
-  const semantic = { layers, sessionGeneration, workout, activeRoute, binding: raw.bindingProfile };
+  const semantic = { layers, sessionGeneration, workout, activeRoute, binding: raw.bindingProfile, testInputMode: testInput?.mode ?? null };
   return {
     adapterInstanceId: OPAQUE.test(raw.adapterInstanceId) ? raw.adapterInstanceId : null,
     sequence: raw.sequence,
@@ -124,6 +138,7 @@ export function toState(snap, last = null) {
     sensors: fresh ? sensorList : [],
     workout: fresh ? workout : { present: null, finished: null },
     activeRoute: fresh ? activeRoute : null,
+    testInput,
   };
 }
 
@@ -147,6 +162,13 @@ export function capabilityReasons(snap, catalog) {
   const read = () => (!snap ? 'ADAPTER_ABSENT' : !fresh ? 'ADAPTER_STALE' : null);
   const reasons = {
     'metrics.read': read(),
+    'camera.read': read() ?? toCamera(snap).reasonCode,
+    'trainer.read': read() ?? toTrainer(snap).reasonCode,
+    'gears.shiftUp': writeBlock(snap, 'gears.shiftUp') ?? gearShiftReason(snap, 'up'),
+    'gears.shiftDown': writeBlock(snap, 'gears.shiftDown') ?? gearShiftReason(snap, 'down'),
+    'camera.next': writeBlock(snap, 'camera.next') ?? toCamera(snap).reasonCode ?? (toCamera(snap).busy ? 'BRIDGE_BUSY' : null),
+    'camera.setMode': writeBlock(snap, 'camera.setMode') ?? toCamera(snap).reasonCode ?? (toCamera(snap).busy ? 'BRIDGE_BUSY' : null),
+    'camera.look': writeBlock(snap, 'camera.look') ?? toCamera(snap).reasonCode ?? toCamera(snap).lookReasonCode ?? (toCamera(snap).busy ? 'BRIDGE_BUSY' : null),
     'sensors.read': read() ?? (raw.isDtOk !== true ? 'MOD_INACTIVE' : raw.sensors == null ? 'CAPABILITY_UNAVAILABLE' : null),
     'activity.read': read() ?? (raw.activity == null ? 'MOD_INACTIVE' : null),
     'mod.setActive': writeBlock(snap, 'mod.setActive') ?? (inControl(raw) ? null : 'GAME_NOT_IN_CONTROL'),
@@ -189,6 +211,9 @@ export function capabilityReasons(snap, catalog) {
 }
 
 const CATALOG = [
+  ['trainer.read', 'trainer.virtualGears', null], ['gears.shiftUp', 'trainer.virtualGears', 'async'], ['gears.shiftDown', 'trainer.virtualGears', 'async'],
+  ['camera.read', 'camera.control', null], ['camera.next', 'camera.control', 'async'],
+  ['camera.setMode', 'camera.control', 'async'], ['camera.look', 'camera.control', 'async'],
   ['metrics.read', 'connection.status', null], ['sensors.read', 'devices.policy', null], ['activity.read', 'metrics.movingTime', null],
   ['mod.setActive', 'mod.activate', 'async'], ['routes.read', 'routes.browse', null], ['routes.preview', 'routes.pcPreview', 'immediate'],
   ['routes.apply', 'routes.apply', 'async'], ['ui.openPanel', 'routes.pcPreview', 'immediate'], ['ui.closePanel', 'routes.pcPreview', 'immediate'],

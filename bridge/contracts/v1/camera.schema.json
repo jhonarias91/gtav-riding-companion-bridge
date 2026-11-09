@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/camera.schema.json",
+  "title": "GET /api/v1/camera (API minor 15)",
+  "description": "Observed GTA bicycle-context camera. No synthetic selected mode. Missing/stale adapter removes modes and angles. Orbit is available in third person, unless GTBike V LookBehindKey owns heading. Commands are finite and never replayed.",
+  "type": "object", "additionalProperties": false,
+  "required": ["available", "reasonCode", "modes", "currentMode", "headingDeg", "pitchDeg", "canLook", "lookReasonCode", "busy"],
+  "properties": {
+    "available": { "type": "boolean" },
+    "reasonCode": { "type": ["string", "null"] },
+    "modes": { "type": "array", "uniqueItems": true, "items": { "enum": ["near", "medium", "far", "firstPerson", "cinematic"] } },
+    "currentMode": { "enum": [null, "near", "medium", "far", "firstPerson", "cinematic"] },
+    "headingDeg": { "type": ["number", "null"], "minimum": -180, "maximum": 180 },
+    "pitchDeg": { "type": ["number", "null"], "minimum": -90, "maximum": 90 },
+    "canLook": { "type": "boolean" },
+    "lookReasonCode": { "type": ["string", "null"] },
+    "busy": { "type": "boolean" }
+  }
+}

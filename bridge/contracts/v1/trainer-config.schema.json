@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/trainer-config.schema.json",
+  "title": "GET/POST /api/v1/trainer-config (API minor 17)",
+  "description": "Closed-game persistent allowlist for [devices] VirtualGears. True means Manual, False means None. Ratio-only edits preserve Auto/Native. The revision covers the full INI file; every write keeps a backup.",
+  "type": "object", "additionalProperties": false,
+  "required": ["available", "reasonCode", "revision", "gameRunning", "editable", "options", "defaults", "nativeMode", "applyMode"],
+  "properties": {
+    "available": { "type": "boolean" }, "reasonCode": { "type": ["string", "null"] },
+    "revision": { "type": ["string", "null"], "pattern": "^modcfg-[a-f0-9]{24}$" },
+    "gameRunning": { "type": "boolean" }, "editable": { "type": "boolean" },
+    "options": { "anyOf": [{ "$ref": "#/$defs/options" }, { "type": "null" }] },
+    "defaults": { "$ref": "#/$defs/options" },
+    "nativeMode": { "enum": [null, "none", "manual", "auto", "native"] },
+    "applyMode": { "const": "nextGameStart" },
+    "saved": { "type": "array", "items": { "enum": ["enabled", "ratios"] }, "uniqueItems": true }
+  },
+  "$defs": {
+    "options": {
+      "type": "object", "additionalProperties": false, "required": ["enabled", "ratios"],
+      "properties": {
+        "enabled": { "type": ["boolean", "null"] },
+        "ratios": { "type": ["array", "null"], "minItems": 1, "maxItems": 64, "uniqueItems": true,
+          "items": { "type": "number", "minimum": 0.1, "maximum": 20, "multipleOf": 0.001 } }
+      }
+    }
+  }
+}

@@ -12,6 +12,11 @@ New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 $output = Join-Path $outputDirectory 'GTBikeVCompanionV1.dll'
 & $compiler /nologo /warnaserror+ /target:library /platform:x64 /optimize+ "/out:$output" "/reference:$reference" /reference:System.Web.Extensions.dll `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Binding.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Gears.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1KeyboardTrainer.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1KeyboardHost.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Camera.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1CameraNative.cs') `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Extensions.cs') `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1More.cs') `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1World.cs') `

@@ -2,6 +2,8 @@
 // or validated -> rejected. 'applied' always needs evidence read back from later snapshots; an adapter ack only
 // means the native handler was invoked. A requestId never runs twice. Unknown outcomes are never retried.
 import { randomBytes } from 'node:crypto';
+import { cameraEvidence } from './camera.mjs';
+import { gearEvidence } from './trainer.mjs';
 import { addonEvidence } from './addons.mjs';
 
 const RETENTION_MS = 10 * 60_000;
@@ -9,6 +11,11 @@ const MAX_OPERATIONS = 200;
 
 /** How long each type may stay pending before it becomes 'unknown'. Route loading downloads and builds the course. */
 export const EVIDENCE_TIMEOUT_MS = {
+  'gears.shiftUp': 5000,
+  'gears.shiftDown': 5000,
+  'camera.next': 4000,
+  'camera.setMode': 4000,
+  'camera.look': 4000,
   'mod.setActive': 20_000,
   'routes.apply': 45_000,
   'routes.preview': 3_000,
@@ -46,6 +53,11 @@ const sameRoute = (a, b) => (a === null && b === null) || (a !== null && b !== n
  * documents. Returns { status: 'applied'|'failed', observed, code? } or null while still pending.
  */
 const EVIDENCE = {
+  'gears.shiftUp': gearEvidence,
+  'gears.shiftDown': gearEvidence,
+  'camera.next': cameraEvidence,
+  'camera.setMode': cameraEvidence,
+  'camera.look': cameraEvidence,
   'mod.setActive': (args, base, { state }) => {
     if (state.layers.adapter !== 'fresh') return null;
     const observed = { mod: state.layers.mod, antReceiver: state.layers.antReceiver, bleReceiver: state.layers.bleReceiver, sequence: state.sequence };

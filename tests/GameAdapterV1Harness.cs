@@ -59,6 +59,9 @@ namespace GTBikeV.Courses
     // Same shape as GTBike V 0.8.0.4: internal class, public event of a nested public delegate with a public LapData.
     internal class Course
     {
+        public ushort Id { get; set; }
+        public bool Loop;
+        public bool Reverse;
         public delegate void LoopEvent(string name, bool noLoop, uint loopNumber, GTBikeV.LapData lapData);
         public event LoopEvent OnCourseCompleted;
         public int Listeners { get { return OnCourseCompleted == null ? 0 : OnCourseCompleted.GetInvocationList().Length; } }
@@ -73,7 +76,11 @@ namespace GTBikeV.Workouts
 
 namespace GTBikeV.Network
 {
-    internal static class Multiplayer { internal static GTBikeV.Activity CurrentActivity { get; set; } }
+    internal static class Multiplayer
+    {
+        internal static GTBikeV.Activity CurrentActivity { get; set; }
+        internal static GTBikeV.Courses.Course CurrentCourse { get; set; }
+    }
 }
 
 namespace GTBikeV.Devices
@@ -110,6 +117,22 @@ namespace GTBikeV.Devices
 
 namespace GTBikeV.UI
 {
+    public class TestCourseView
+    {
+        public System.Collections.IList ItemList { get; private set; }
+        public bool IgnoreClear;
+        public int Clears;
+        public event Action<object, object> OnCourseSelected;
+        public TestCourseView()
+        {
+            ItemList = new object[] { null };
+            OnCourseSelected += delegate {
+                Clears++;
+                if (!IgnoreClear) GTBikeV.Network.Multiplayer.CurrentCourse = null;
+            };
+        }
+    }
+
     public class TestItem
     {
         public bool Enabled { get; set; }
@@ -119,7 +142,13 @@ namespace GTBikeV.UI
     }
     public static class Menus
     {
+        public static TestCourseView courseSelectionView = new TestCourseView();
+        private static TestItem courseSelectionMenuItem = new TestItem();
         public static int Activations;
+        public static int MenuCloses;
+        public static bool MenuAutoOpenStatus = true;
+        public static bool Visible = true;
+        public static void CloseMenus() { Visible = false; MenuAutoOpenStatus = true; MenuCloses++; }
         private static TestItem activateModMenuItem = new TestItem { Enabled = true };
         static Menus()
         {
@@ -152,6 +181,23 @@ public static class HarnessV1
     {
         try
         {
+            var ext = new GtbikeV1Extensions(n => typeof(HarnessV1).Assembly.GetType(n, false), true);
+            var selector = GTBikeV.UI.Menus.courseSelectionView;
+            Equal(ext.CancelCourseForAddon(true, "inControl"), null, "free ride needs no cancellation");
+            Equal(selector.Clears, 0, "free ride does not reselect or clear bots");
+            GTBikeV.Network.Multiplayer.CurrentCourse = new GTBikeV.Courses.Course();
+            Equal(ext.CancelCourseForAddon(false, "inControl"), "MOD_INACTIVE", "inactive mod preserves the course");
+            Equal(ext.CancelCourseForAddon(true, "paused"), "GAME_NOT_IN_CONTROL", "paused game preserves the course");
+            Equal(selector.Clears, 0, "refused starts never dispatch cancellation");
+            Equal(ext.CancelCourseForAddon(true, "inControl"), null, "native free-ride selector cancels the course");
+            Equal(GTBikeV.Network.Multiplayer.CurrentCourse, null, "old course really removed");
+            Equal(selector.Clears, 1, "cancellation dispatched exactly once");
+            GTBikeV.Network.Multiplayer.CurrentCourse = new GTBikeV.Courses.Course();
+            selector.IgnoreClear = true;
+            Equal(ext.CancelCourseForAddon(true, "inControl"), "VALUE_NOT_ALLOWED", "dispatch without removal cannot start a second route");
+            selector.IgnoreClear = false;
+            GTBikeV.Network.Multiplayer.CurrentCourse = null;
+
             DateTime t0 = new DateTime(2026, 11, 4, 15, 0, 0, DateTimeKind.Utc);
             GtbikeV1Binding b = Bind("0.8.0.4");
             Equal(b.BindingStatus, "compatible", "all bindings resolve on 0.8.0.4");
@@ -216,6 +262,7 @@ public static class HarnessV1
             Equal(Dict(b.SetActive(false, "paused"))["reasonCode"], "GAME_NOT_IN_CONTROL", "paused game rejected");
             GTBikeV.DataTransceiver.SetStates("READY", "STOPPED");
             Equal(Dict(b.SetActive(true, "inControl"))["status"], "noop", "already active is a no-op");
+            Equal(GTBikeV.UI.Menus.MenuCloses, 0, "no F5-equivalent action when activation did not change");
             Equal(GTBikeV.UI.Menus.Activations, before, "no-op does not touch the toggle");
             Equal(Dict(b.SetActive(false, "inControl"))["status"], "dispatched", "disable dispatches once");
             Equal(GTBikeV.UI.Menus.Activations, before + 1, "toggle invoked once");
@@ -224,6 +271,9 @@ public static class HarnessV1
             GTBikeV.DataTransceiver.SetStates("STOPPED", "STOPPED");
             Equal(Dict(b.SetActive(false, "inControl"))["status"], "noop", "already inactive is a no-op");
             Equal(Dict(b.SetActive(true, "inControl"))["status"], "dispatched", "enable from stopped dispatches");
+            Equal(GTBikeV.UI.Menus.Visible, false, "activation hides the menu");
+            Equal(GTBikeV.UI.Menus.MenuAutoOpenStatus, false, "activation suppresses immediate auto-open");
+            Equal(GTBikeV.UI.Menus.MenuCloses, 1, "menu closed exactly once on activation");
 
             // P18 rider progress: a handler compiled for GTBike V's own (non-visible) LoopEvent type receives the lap data.
             var course = new GTBikeV.Courses.Course();

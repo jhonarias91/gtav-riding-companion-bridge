@@ -329,6 +329,21 @@ namespace CompanionBridge.V1
             return -1;
         }
 
+        /// <summary>Leave the previous course through its native selector before an add-on creates its guidance.</summary>
+        public string CancelCourseForAddon(bool dtOk, string gameControl)
+        {
+            if (!writable || currentCourse == null) return "CAPABILITY_UNAVAILABLE";
+            if (gameControl != "inControl") return "GAME_NOT_IN_CONTROL";
+            if (!dtOk) return "MOD_INACTIVE";
+            if (currentCourse.GetValue(null, null) == null) return null;
+            Dictionary<string, object> ack = ApplyRoute(new Dictionary<string, object> {
+                { "routeId", null }, { "loop", false }, { "reverse", false }
+            }, null, dtOk, gameControl);
+            if (!object.Equals(ack["status"], "dispatched")) return ack["reasonCode"] as string ?? "CAPABILITY_UNAVAILABLE";
+            // Dispatch alone is insufficient: never add another route if the native handler did not clear the first.
+            return currentCourse.GetValue(null, null) == null ? null : "VALUE_NOT_ALLOWED";
+        }
+
         /// <summary>
         /// routes.apply: same path as the selector's Select button (CourseSelectionView.SelectCourseButton_OnRelease).
         /// Allowed during a workout, as the mod's menu is (user decision, 6 Nov 2026): InitializeCourse saves the current
@@ -542,12 +557,30 @@ namespace CompanionBridge.V1
         /// </summary>
         private bool RunOnModTick(object listItem, Action work)
         {
-            Delegate handlers = listChanged == null || modScript == null ? null : listChanged.GetValue(listItem) as Delegate;
+            return RunOnTick(ModScriptInstance(listItem), work, DeferredError);
+        }
+
+        private object ModScriptInstance(object listItem)
+        {
+            Delegate handlers = listItem == null || listChanged == null || modScript == null ? null : listChanged.GetValue(listItem) as Delegate;
             object script = null;
             if (handlers != null)
                 foreach (Delegate h in handlers.GetInvocationList())
                     if (h.Target != null && modScript.IsInstanceOfType(h.Target)) { script = h.Target; break; }
-            return RunOnTick(script, work, DeferredError);
+            return script;
+        }
+
+        public object KeyboardScriptInstance()
+        {
+            return ModScriptInstance(Value(bikeItem)) ?? ModScriptInstance(Value(pedItem));
+        }
+
+        /// <summary>Read-only, from the same script instance already resolved for native menu actions.</summary>
+        public bool? CameraLookOverride()
+        {
+            object script = ModScriptInstance(Value(bikeItem)) ?? ModScriptInstance(Value(pedItem));
+            FieldInfo heading = script == null ? null : modScript.GetField("cameraRelativeHeading", I);
+            return heading == null || heading.FieldType != typeof(float) ? (bool?)null : (float)heading.GetValue(script) != 0f;
         }
 
         /// <summary>

@@ -3,6 +3,7 @@
 // Strict: no coercion, unknown fields rejected, ranges checked here because the native setters silently
 // replace out-of-range values with defaults (Config.cs:90-140).
 import { randomBytes } from 'node:crypto';
+import { CAMERA_MODES } from './camera.mjs';
 import { checkParams, SEGMENT_ID, PLACE_ID } from './addons.mjs';
 
 export class CommandError extends Error {
@@ -57,6 +58,22 @@ function onlyKeys(obj, allowed, required = []) {
 
 /** Argument rules per command type. Each returns a normalized copy of args. */
 const ARGS = {
+  'gears.shiftUp': a => { onlyKeys(a, []); return {}; },
+  'gears.shiftDown': a => { onlyKeys(a, []); return {}; },
+  'camera.next': a => { onlyKeys(a, []); return {}; },
+  'camera.setMode': a => {
+    onlyKeys(a, ['mode'], ['mode']);
+    if (!CAMERA_MODES.includes(a.mode)) throw new CommandError('VALUE_NOT_ALLOWED', 422, { field: 'mode' });
+    return { mode: a.mode };
+  },
+  'camera.look': a => {
+    onlyKeys(a, ['headingDeg', 'pitchDeg'], ['headingDeg', 'pitchDeg']);
+    for (const [key, min, max] of [['headingDeg', -180, 180], ['pitchDeg', -45, 45]]) {
+      if (typeof a[key] !== 'number' || !Number.isFinite(a[key]) || a[key] < min || a[key] > max)
+        throw new CommandError('VALUE_OUT_OF_RANGE', 422, { field: key });
+    }
+    return { headingDeg: a.headingDeg, pitchDeg: a.pitchDeg };
+  },
   'mod.setActive': (a) => {
     onlyKeys(a, ['enabled'], ['enabled']);
     if (!isBool(a.enabled)) throw new CommandError('INVALID_REQUEST', 422, { field: 'enabled' });
@@ -249,6 +266,7 @@ export function validateCommand(body) {
   if (body.expectedRevision !== null && (typeof body.expectedRevision !== 'string' || !OPAQUE.test(body.expectedRevision))) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
   const rule = Object.hasOwn(ARGS, body.type) ? ARGS[body.type] : null;
   if (!rule) throw new CommandError('CAPABILITY_UNAVAILABLE', 422, { field: 'type' });
+  if ((body.type.startsWith('camera.') || body.type.startsWith('gears.')) && body.expectedRevision !== null) throw new CommandError('INVALID_REQUEST', 422, { field: 'expectedRevision' });
   if (!isObject(body.args)) throw new CommandError('INVALID_REQUEST', 422, { field: 'args' });
   return {
     requestId: body.requestId,

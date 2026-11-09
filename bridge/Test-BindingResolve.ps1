@@ -14,6 +14,7 @@ $exe = Join-Path $outputDirectory 'BindingResolveCheck.exe'
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Binding.cs') `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1Extensions.cs') `
     (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1More.cs') `
+    (Join-Path $PSScriptRoot 'game-adapter-v1\GtbikeV1KeyboardTrainer.cs') `
     (Join-Path $PSScriptRoot '..\tests\BindingResolveCheck.cs')
 if ($LASTEXITCODE -ne 0) { throw 'The binding check failed to build.' }
 & $exe $mod (Split-Path $mod) $GtaDirectory (Join-Path $GtaDirectory 'scripts')

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.gtav-riding-companion.invalid/v1/trainer.schema.json",
+  "title": "GET /api/v1/trainer (API minor 17)",
+  "description": "Observed native VirtualGearBox. Gear numbers are one-based. Live shifts are finite native calls and never generic key events or ERG target writes.",
+  "type": "object", "additionalProperties": false,
+  "required": ["available", "reasonCode", "enabled", "mode", "gear", "gearCount", "ratio", "canShiftUp", "canShiftDown", "shiftReasonCode", "busy"],
+  "properties": {
+    "available": { "type": "boolean" }, "reasonCode": { "type": ["string", "null"] },
+    "enabled": { "type": ["boolean", "null"] },
+    "mode": { "enum": [null, "none", "manual", "auto", "tempManual", "native"] },
+    "gear": { "type": ["integer", "null"], "minimum": 1, "maximum": 255 },
+    "gearCount": { "type": ["integer", "null"], "minimum": 1, "maximum": 255 },
+    "ratio": { "type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 100 },
+    "canShiftUp": { "type": "boolean" }, "canShiftDown": { "type": "boolean" },
+    "shiftReasonCode": { "type": ["string", "null"] }, "busy": { "type": "boolean" }
+  }
+}

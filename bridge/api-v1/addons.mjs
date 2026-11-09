@@ -17,7 +17,7 @@ export const ADDONS = [
     description: 'Random pickup and drop-off points in Downtown Los Santos, marked on the map with a GPS route; you choose your own line through traffic. '
       + 'Packages are fragile: hitting a car, a kerb or a wall, or falling, damages the one you carry, and at 0% it is lost. '
       + 'Heavy packages bring a storm and a headwind that GTBike V sends to your trainer as extra resistance; rain also lowers grip. '
-      + 'The clock starts at the first pickup. Not available while a course is loaded; loading one ends the mission.',
+      + 'The clock starts at the first pickup. Starting cancels the current course or other add-on first; loading a course ends the mission.',
     parameters: [
       { id: 'packages', label: 'Packages', description: 'How many packages to pick up and deliver.', type: 'integer', min: 1, max: 10, step: 1, unit: null, default: 5, liveEdit: false },
       { id: 'timeLimitMin', label: 'Time limit', description: 'Total time, counted from the first pickup.', type: 'integer', min: 5, max: 60, step: 1, unit: 'min', default: 20, liveEdit: false },
@@ -38,7 +38,7 @@ export const ADDONS = [
     description: 'For threshold and high-intensity intervals, best on long roads such as the canals or the coast highway. '
       + 'Once you pass the target speed a chaser appears behind you. While you hold the target speed and keep pedalling it keeps its distance, and riding faster opens the gap a little. '
       + 'Below the target speed, for example on a climb, or coasting for longer than the grace time (GTBike V power and cadence near zero, even downhill at speed), it closes in fast. '
-      + 'If it reaches you it rams you. Survive the set time to win. Works on a GTBike V course too.',
+      + 'If it reaches you it rams you. Survive the set time to win. Starting cancels the current course or other add-on first.',
     parameters: [
       { id: 'targetKmh', label: 'Target speed', description: 'Speed that starts the chase and that you must hold.', type: 'integer', min: 15, max: 60, step: 1, unit: 'km/h', default: 30, liveEdit: true },
       { id: 'startGapM', label: 'Start distance', description: 'How far behind you the chaser appears.', type: 'integer', min: 10, max: 80, step: 5, unit: 'm', default: 30, liveEdit: false },
@@ -62,7 +62,7 @@ export const ADDONS = [
     description: 'Mark segments on the PC window map (right-click: Ghost segment start here, then Ghost segment finish here; the same point twice makes a loop). '
       + 'With this add-on on, riding through a start circle starts the clock and a see-through ghost rider replays your best attempt (or your last one); the screen shows the live gap, green when you are ahead. '
       + 'The finish saves the attempt, and a faster one becomes the new record and the new ghost. Records keep the date, average power and speed. '
-      + 'Teleporting cancels an attempt. Works on a GTBike V course too.',
+      + 'Teleporting cancels an attempt. Starting cancels the current course or other add-on first.',
     parameters: [
       { id: 'ghostSource', label: 'Race against', description: 'The ghost replays your best attempt or your last one.', type: 'enum', options: [{ id: 'best', label: 'My best' }, { id: 'last', label: 'My last' }], default: 'best', liveEdit: true },
       { id: 'showGhost', label: 'Show the ghost rider', description: 'Off: only the live gap is shown.', type: 'boolean', default: true, liveEdit: true },
@@ -84,7 +84,7 @@ export const ADDONS = [
     description: 'Each round hides a spot: one of your places saved on the PC window map (right-click: Save place here) or a random street spot around you. '
       + 'You only get the zone it is in and the straight-line distance, with hot or cold and closer or farther as you ride; optionally a yellow search circle on the game map that contains it, not centred on it. '
       + 'Reach it to find it. XP grows with the distance, finding it fast, a first visit to a place, a new zone and your daily streak; playing without the search circle earns more. '
-      + 'Your XP, level, finds and history stay on this PC in the progress file. Free ride only.',
+      + 'Your XP, level, finds and history stay on this PC in the progress file. Starting cancels the current course or other add-on first.',
     parameters: [
       { id: 'source', label: 'Spots', description: 'Your saved places, random street spots, or your places first and random ones when none is in range.', type: 'enum', options: [{ id: 'mixed', label: 'My places, then random' }, { id: 'myPlaces', label: 'Only my places' }, { id: 'random', label: 'Only random spots' }], default: 'mixed', liveEdit: false },
       { id: 'rounds', label: 'Spots per run', description: 'How many spots to find in one run.', type: 'integer', min: 1, max: 20, step: 1, unit: null, default: 3, liveEdit: false },
@@ -169,8 +169,8 @@ export function startReason(snap, id) {
   if (isActive(a.state)) return null; // Enabling a running add-on is a no-op.
   if (raw.isDtOk !== true) return 'MOD_INACTIVE';
   if (raw.gameControl !== 'inControl') return 'GAME_NOT_IN_CONTROL';
-  if (ADDONS.some(other => other.id !== id && isActive(rawAddon(snap, other.id)?.state))) return 'ADDON_BUSY'; // One at a time.
-  if (raw.activeRoute && !byId(id).allowedDuringCourse) return 'VALUE_NOT_ALLOWED';
+  // The adapter replaces the current course/add-on. It must be able to leave a loaded course first.
+  if (raw.activeRoute && !raw.commands?.includes('routes.apply')) return 'CAPABILITY_UNAVAILABLE';
   if (raw.addonContext?.onBicycle === false) return 'RIDER_NOT_ON_BIKE';
   if (raw.teleport?.status === 'running') return 'BRIDGE_BUSY';
   return null;
@@ -484,6 +484,8 @@ export function addonEvidence(type, args, base, snap) {
   if (!args.enabled) return isActive(a.state) ? null : { status: 'applied', observed: { addonId: args.addonId, state: a.state } };
   // The adapter tags the run with the requestId that started it; 'preparing' means it is still locating the first point.
   if (a.requestId !== base.requestId) return null;
+  // A new run is only applied once the previous route and add-on have actually stopped.
+  if (a.state !== 'failed' && (snap.raw.activeRoute || ADDONS.some(other => other.id !== args.addonId && isActive(rawAddon(snap, other.id)?.state)))) return null;
   if (a.state === 'running') return { status: 'applied', observed: { addonId: args.addonId, state: 'running' } };
   if (a.state === 'failed') return { status: 'failed', observed: { addonId: args.addonId, state: 'failed' }, code: START_FAILURES.has(a.reasonCode) ? a.reasonCode : 'INTERNAL' };
   if (a.state === 'finished' || a.state === 'aborted') return { status: 'applied', observed: { addonId: args.addonId, state: a.state } }; // Started and already over.

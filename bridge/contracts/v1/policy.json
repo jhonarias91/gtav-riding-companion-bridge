@@ -1,8 +1,15 @@
 {
-  "policyVersion": "v1-p18",
+  "policyVersion": "v1-p20",
   "status": "proposal",
   "note": "Machine-readable allowlist and denylist for the native Android scope. Enforced in bridge, adapter and tests, not only by hiding UI.",
   "capabilityCatalog": [
+    { "id": "trainer.read", "phase": "P20", "kind": "read", "helpId": "trainer.virtualGears" },
+    { "id": "gears.shiftUp", "phase": "P20", "kind": "write", "helpId": "trainer.virtualGears", "commandType": "gears.shiftUp", "note": "User-authorized native VirtualGearBox.GearUp(true) only, version guarded and invoked on GTBikeVScript.Tick. Never raises GearUpKey, which also changes workout bias or ERG target." },
+    { "id": "gears.shiftDown", "phase": "P20", "kind": "write", "helpId": "trainer.virtualGears", "commandType": "gears.shiftDown", "note": "Native VirtualGearBox.GearDown(true) only. No generic key, ERG target or workout bias API. Persistent True/False and ratios are a separate closed-game INI allowlist at /trainer-config." },
+    { "id": "camera.read", "phase": "P19", "kind": "read", "helpId": "camera.control" },
+    { "id": "camera.next", "phase": "P19", "kind": "write", "helpId": "camera.control", "commandType": "camera.next" },
+    { "id": "camera.setMode", "phase": "P19", "kind": "write", "helpId": "camera.control", "commandType": "camera.setMode" },
+    { "id": "camera.look", "phase": "P19", "kind": "write", "helpId": "camera.control", "commandType": "camera.look" },
     { "id": "metrics.read", "phase": "P2", "kind": "read", "helpId": "connection.status" },
     { "id": "sensors.read", "phase": "P2", "kind": "read", "helpId": "devices.policy" },
     { "id": "activity.read", "phase": "P2", "kind": "read", "helpId": "metrics.movingTime" },
@@ -69,6 +76,7 @@
     }
   },
   "modSetActiveGuard": {
+    "activationMenuBehavior": "Only a real false-to-true activation invokes Menus.CloseMenus and then sets MenuAutoOpenStatus=false. Equivalent hiding effect to MenuKey/F5, without injecting an OS key or reopening an already hidden menu. No-op and disabling do not close or open menus.",
     "rule": "Native ActivateModHandler (GTBikeVScript.cs:1425) is a toggle on IsDTOK. enabled=true allowed only if IsDTOK==false and no receiver in {initialized, started, complete, stopping}. enabled=false allowed only if IsDTOK==true and no receiver in {stopping}. enabled equal to observed state is a no-op that reaches 'applied' without invoking the handler.",
     "reasonCode": "MOD_TRANSITION_IN_PROGRESS",
     "evidence": "DataTransceiver.cs:193-220 (IsDTOK includes STOPPING), 431-604 (state transitions)"

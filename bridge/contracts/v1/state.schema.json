@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.gtav-riding-companion.invalid/v1/state.schema.json",
   "title": "GET /api/v1/state",
-  "description": "Normalized snapshot. Every key is required and nullable: absence is explicit, never an improvised optional field. Canonical units: m, m/s, ms, W, rpm, bpm, slope fraction, radians.",
+  "description": "Normalized snapshot. Core keys are required and nullable. Optional additive testInput labels local PC keyboard simulation. Canonical units: m, m/s, ms, W, rpm, bpm, slope fraction, radians.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,6 +10,22 @@
     "modVersion", "bindingProfile", "layers", "sport", "metrics", "sensors", "workout", "activeRoute"
   ],
   "properties": {
+    "testInput": {
+      "description": "Absent/null for normal input. Retained with stale simulated values; never implies a physical ANT/BLE device.",
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "targetPowerW", "cadenceRpm", "pedalling"],
+          "properties": {
+            "mode": { "const": "keyboard" },
+            "targetPowerW": { "type": "integer", "minimum": 50, "maximum": 1000 },
+            "cadenceRpm": { "type": "integer", "minimum": 0, "maximum": 254 },
+            "pedalling": { "type": "boolean" }
+          }
+        }
+      ]
+    },
     "adapterInstanceId": { "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },
     "sequence": { "description": "Monotonic within one adapterInstanceId only.", "type": ["integer", "null"], "minimum": 0 },
     "stateRevision": { "description": "Changes on semantic changes, not on every power sample.", "anyOf": [{ "$ref": "common.schema.json#/$defs/opaqueId" }, { "type": "null" }] },

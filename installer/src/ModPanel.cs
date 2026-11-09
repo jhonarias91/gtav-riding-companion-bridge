@@ -8,6 +8,7 @@ using System.IO;
 using System.Net;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace GTAVRidingCompanion
@@ -24,6 +25,9 @@ namespace GTAVRidingCompanion
         readonly Func<bool> bridgeRunning;
         readonly ToolTip tips = new ToolTip { AutoPopDelay = 15000, InitialDelay = 300 };
         readonly Label adapterValue = Ui.Value(), modValue = Ui.Value(), gameValue = Ui.Value(), routeValue = Ui.Value();
+        readonly Label keyboardValue = Ui.Value();
+        readonly Label speedValue = Ui.Value(), powerValue = Ui.Value(), cadenceValue = Ui.Value(), heartRateValue = Ui.Value(), distanceValue = Ui.Value(), rideTimeValue = Ui.Value();
+        readonly Label movingTimeValue = Ui.Value(), climbValue = Ui.Value(), gradeValue = Ui.Value();
         readonly Button toggle = Ui.Primary("Activate GTBike V");
         readonly NumericUpDown weight = Ui.Number(), ftp = Ui.Number(), hrMax = Ui.Number();
         readonly Button saveProfile = Ui.Primary("Save"), discardProfile = Ui.Secondary("Discard");
@@ -38,8 +42,16 @@ namespace GTAVRidingCompanion
         readonly Label downloadStatus = new Label { AutoSize = true, MaximumSize = new Size(380, 0), ForeColor = Color.FromArgb(203, 213, 225) };
         readonly CheckBox follow = new CheckBox { Text = "Follow rider", AutoSize = true, Checked = true, Margin = new Padding(6, 8, 10, 0) };
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer { Interval = 500 };
-        Dictionary<string, object> state, settings;
-        bool polling, loading, profileDirty, commandRunning;
+        readonly HashSet<string> pinnedActions = new HashSet<string>(new[] { "mod", "autopilot", "camera", "menu" });
+        readonly Dictionary<string, Button> quickButtons = new Dictionary<string, Button>(), actionButtons = new Dictionary<string, Button>();
+        readonly Dictionary<string, CheckBox> pinChecks = new Dictionary<string, CheckBox>();
+        readonly FlowLayoutPanel quickActions = new FlowLayoutPanel { Width = 328, MaximumSize = new Size(328, 0), AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = true, Margin = Padding.Empty };
+        readonly FlowLayoutPanel allActions = new FlowLayoutPanel { Width = 328, AutoSize = true, WrapContents = false, FlowDirection = FlowDirection.TopDown, Visible = false, Margin = Padding.Empty };
+        static readonly string[] ActionIds = { "mod", "autopilot", "camera", "menu", "erg", "gears", "map", "destination", "brake", "routes", "training", "devices", "activities", "riders", "addons" };
+        static readonly string[] ActionNames = { "GTBike V", "Autopilot", "Camera", "GTBike V menu", "ERG", "Virtual gears", "Map", "GPS destination", "Brake", "Routes", "Training", "Devices", "Activities", "Riders", "Add-ons" };
+        public Action<string> NavigateAction;
+        Dictionary<string, object> state, settings, trainerState;
+        bool polling, loading, profileDirty, commandRunning, customPins, fillingPins;
         int tick;
         string lastModLayer;
 
@@ -69,8 +81,37 @@ namespace GTAVRidingCompanion
             Ui.Row(status, "Route", routeValue);
             toggle.Width = width - 28; toggle.Height = 40; toggle.Margin = new Padding(0, 8, 0, 2);
             toggle.Click += async (s, e) => await ToggleMod();
-            Ui.Full(status, toggle);
             side.Controls.Add(status);
+
+            var metrics = Ui.Card("Ride", width);
+            Ui.Row(metrics, "Speed", speedValue);
+            Ui.Row(metrics, "Power", powerValue);
+            Ui.Row(metrics, "Cadence", cadenceValue);
+            Ui.Row(metrics, "Heart rate", heartRateValue);
+            Ui.Row(metrics, "Distance", distanceValue);
+            Ui.Row(metrics, "Riding time", rideTimeValue);
+            Ui.Row(metrics, "Moving time", movingTimeValue);
+            Ui.Row(metrics, "Elevation gain", climbValue);
+            Ui.Row(metrics, "Grade", gradeValue);
+            side.Controls.Add(metrics);
+
+            LoadPinnedActions();
+            var shortcuts = Ui.Card("Ride actions", width);
+            Ui.Full(shortcuts, quickActions);
+            var manageActions = Ui.Secondary("Actions · pin or unpin");
+            manageActions.Width = width - 28;
+            manageActions.Click += (s, e) => { allActions.Visible = !allActions.Visible; };
+            Ui.Full(shortcuts, manageActions);
+            Ui.Full(shortcuts, new Label { AutoSize = true, MaximumSize = new Size(width - 28, 0), ForeColor = Ui.Muted, Text = "Choose which actions stay on Ride. Every action remains available in Actions." });
+            Ui.Full(shortcuts, allActions);
+            BuildActions();
+            side.Controls.Add(shortcuts);
+
+            var keyboard = Ui.Card("Keyboard test trainer", width);
+            Ui.Full(keyboard, new Label { AutoSize = true, MaximumSize = new Size(width - 28, 0), ForeColor = Ui.Muted,
+                Text = "In GTA V, leave GTBike V inactive with sensors disconnected. Close the menus and press F10. Hold W to pedal, S to brake, +/- to change watts. Press F10 again to exit. Test rides are discarded." });
+            Ui.Row(keyboard, "Input", keyboardValue);
+            side.Controls.Add(keyboard);
 
             var profile = Ui.Card("Rider profile", width);
             Ui.Row(profile, "Weight (kg)", weight);
@@ -153,6 +194,103 @@ namespace GTAVRidingCompanion
             timer.Tick += async (s, e) => await Poll();
             SetEnabled(false);
             UpdateProfileButtons();
+            UpdateActions();
+        }
+
+        static string ActionsPath { get { return Path.Combine(Paths.Root, "ride-actions.json"); } }
+
+        void LoadPinnedActions()
+        {
+            try
+            {
+                if (!File.Exists(ActionsPath)) return;
+                var saved = new JavaScriptSerializer().DeserializeObject(File.ReadAllText(ActionsPath)) as object[];
+                if (saved == null) return;
+                customPins = true;
+                pinnedActions.Clear();
+                foreach (object value in saved) if (value is string && ActionIds.Contains((string)value)) pinnedActions.Add((string)value);
+            }
+            catch (Exception error) { message.Text = "Ride action preferences could not be read: " + error.Message; }
+        }
+
+        void SavePinnedActions()
+        {
+            customPins = true;
+            try
+            {
+                Directory.CreateDirectory(Paths.Root);
+                string temporary = ActionsPath + ".tmp";
+                File.WriteAllText(temporary, new JavaScriptSerializer().Serialize(ActionIds.Where(id => pinnedActions.Contains(id)).ToArray()));
+                if (File.Exists(ActionsPath)) File.Replace(temporary, ActionsPath, null); else File.Move(temporary, ActionsPath);
+            }
+            catch (Exception error) { message.Text = "Ride action preferences could not be saved: " + error.Message; }
+        }
+
+        void BuildActions()
+        {
+            for (int i = 0; i < ActionIds.Length; i++)
+            {
+                string id = ActionIds[i], name = ActionNames[i];
+                var row = new FlowLayoutPanel { Width = 328, Height = 54, WrapContents = false, Margin = Padding.Empty };
+                var launch = Ui.Secondary(name); launch.Width = 194; launch.Height = 48;
+                launch.Click += async (s, e) => await InvokeAction(id);
+                var pin = Ui.Check("Pin to Ride"); pin.Checked = pinnedActions.Contains(id); pin.AccessibleName = "Pin " + name + " to Ride";
+                pin.CheckedChanged += (s, e) => { if (fillingPins) return; if (pin.Checked) pinnedActions.Add(id); else pinnedActions.Remove(id); SavePinnedActions(); RebuildQuickActions(); };
+                row.Controls.AddRange(new Control[] { launch, pin }); allActions.Controls.Add(row);
+                actionButtons[id] = launch; pinChecks[id] = pin;
+            }
+            RebuildQuickActions();
+        }
+
+        void RebuildQuickActions()
+        {
+            foreach (Control control in quickActions.Controls.Cast<Control>().ToArray()) control.Dispose();
+            quickActions.Controls.Clear(); quickButtons.Clear();
+            for (int i = 0; i < ActionIds.Length; i++)
+            {
+                string id = ActionIds[i];
+                if (!pinnedActions.Contains(id)) continue;
+                var button = Ui.Secondary(ActionNames[i]); button.Width = 156; button.Height = 50; button.Margin = new Padding(0, 0, 8, 6);
+                button.Click += async (s, e) => await InvokeAction(id);
+                var context = new ContextMenuStrip();
+                context.Items.Add("Unpin from Ride", null, (s, e) => { CheckBox pin; if (pinChecks.TryGetValue(id, out pin)) pin.Checked = false; });
+                button.ContextMenuStrip = context;
+                quickActions.Controls.Add(button); quickButtons[id] = button;
+            }
+            if (quickButtons.Count == 0) quickActions.Controls.Add(new Label { Text = "No pinned actions. Open Actions to choose them.", AutoSize = true, ForeColor = Ui.Muted, MaximumSize = new Size(320, 0) });
+            UpdateActions();
+        }
+
+        void UpdateActions()
+        {
+            foreach (var group in new[] { quickButtons, actionButtons })
+                foreach (var pair in group)
+                {
+                    string reason = null;
+                    if (pair.Key == "mod") { pair.Value.Text = toggle.Text; if (!toggle.Enabled) reason = tips.GetToolTip(toggle) ?? "Wait for fresh game data."; }
+                    else if (pair.Key == "autopilot") { pair.Value.Text = "Autopilot · " + (autopilot.Checked ? "On" : "Off"); if (!autopilot.Enabled) reason = tips.GetToolTip(autopilot) ?? "Autopilot is unavailable."; }
+                    else if (pair.Key == "menu") { pair.Value.Text = "GTBike V menu\nUse F5 in GTA V"; reason = "This adapter does not expose the native GTBike V menu. Press F5 in GTA V."; }
+                    else if (pair.Key == "erg") { pair.Value.Text = "ERG\nRemote unavailable"; reason = "This adapter does not expose remote ERG control."; }
+                    else if (pair.Key == "brake") { pair.Value.Text = "Brake\nUse S in GTA V"; reason = "This adapter does not expose remote braking. Use S in GTA V."; }
+                    else if (pair.Key == "gears")
+                    {
+                        bool observed = Json.Bool(trainerState, "available") == true;
+                        int? gear = observed ? Json.Int(trainerState, "gear") : null;
+                        pair.Value.Text = gear.HasValue ? "Gear " + gear + " · Virtual gears" : "Virtual gears";
+                    }
+                    pair.Value.Enabled = reason == null;
+                    tips.SetToolTip(pair.Value, reason);
+                }
+        }
+
+        async Task InvokeAction(string id)
+        {
+            if (id == "mod") { if (toggle.Enabled) await ToggleMod(); }
+            else if (id == "autopilot") { if (autopilot.Enabled) await RideChanged("autopilot", !autopilot.Checked); }
+            else if (id == "map") { follow.Checked = true; map.SetFollow(true); map.Focus(); }
+            else if (id == "destination") { map.Focus(); message.Text = "Right-click a point on the map and choose Set GPS destination. The game confirms its own route."; }
+            else if (NavigateAction != null) NavigateAction(id);
+            UpdateActions();
         }
 
         /// <summary>Starts polling the bridge while the tab is visible.</summary>
@@ -218,7 +356,7 @@ namespace GTAVRidingCompanion
                 BridgeClient c = client();
                 if (c == null)
                 {
-                    state = null; settings = null;
+                    state = null; settings = null; trainerState = null;
                     // A running bridge without a desktop token is an older install than this window.
                     map.Overlay = bridgeRunning() ? "The installed bridge is older than this window. Press Update in the Setup tab." : "Start the bridge (Phone tab) to see the game.";
                     map.SetRider(null, null, null);
@@ -229,8 +367,22 @@ namespace GTAVRidingCompanion
                 ApplyWorld(world);
                 if (tick % 2 == 0)
                 {
-                    var s = await c.GetAsync("/api/v1/state");
-                    state = s.Ok ? s.Body : null;
+                    var s = c.GetAsync("/api/v1/state");
+                    var t = c.GetAsync("/api/v1/trainer");
+                    await Task.WhenAll(s, t);
+                    state = s.Result.Ok ? s.Result.Body : null;
+                    trainerState = t.Result.Ok ? t.Result.Body : null;
+                    if (!customPins && Json.Bool(trainerState, "available") == true)
+                    {
+                        bool gearDefault = Json.Bool(trainerState, "enabled") == true;
+                        if (gearDefault != pinnedActions.Contains("gears"))
+                        {
+                            if (gearDefault) pinnedActions.Add("gears"); else pinnedActions.Remove("gears");
+                            fillingPins = true;
+                            try { pinChecks["gears"].Checked = gearDefault; } finally { fillingPins = false; }
+                            RebuildQuickActions();
+                        }
+                    }
                     ShowState();
                 }
                 if (tick % 4 == 0 && !commandRunning)
@@ -300,9 +452,28 @@ namespace GTAVRidingCompanion
         {
             var layers = Json.Obj(state, "layers");
             string adapter = Json.Str(layers, "adapter"), mod = Json.Str(layers, "mod"), control = Json.Str(layers, "gameControl");
+            var testInput = Json.Obj(state, "testInput");
+            bool keyboardTest = Json.Str(testInput, "mode") == "keyboard";
+            Ui.Status(keyboardValue, keyboardTest ? (adapter == "fresh" ? "SIMULATED - " : "Last input: simulated - ") + Json.Int(testInput, "targetPowerW") + " W" : "Off", keyboardTest ? Ui.Warn : Ui.Muted);
+            var metrics = Json.Obj(state, "metrics");
+            ShowMetric(speedValue, metrics, "speedMps", 3.6, "0.0", "km/h", keyboardTest);
+            ShowMetric(powerValue, metrics, "powerW", 1, "0", "W", keyboardTest);
+            ShowMetric(cadenceValue, metrics, "cadenceRpm", 1, "0", "rpm", keyboardTest);
+            ShowMetric(heartRateValue, metrics, "heartRateBpm", 1, "0", "bpm", false);
+            ShowMetric(distanceValue, metrics, "distanceM", 0.001, "0.00", "km", keyboardTest);
+            var rideTime = Json.Obj(metrics, "ridingTimeMs");
+            double? rideTimeMs = Json.Num(rideTime, "value");
+            string timeQuality = Json.Str(rideTime, "quality");
+            Ui.Status(rideTimeValue, rideTimeMs == null || timeQuality == "unavailable" ? "—" : Fmt.Duration(rideTimeMs / 1000) + (timeQuality == "stale" ? " (last value)" : ""), timeQuality == "stale" ? Ui.Warn : Ui.Text);
+            var movingTime = Json.Obj(metrics, "movingTimeMs");
+            double? movingMs = Json.Num(movingTime, "value");
+            string movingQuality = Json.Str(movingTime, "quality");
+            Ui.Status(movingTimeValue, movingMs == null || movingQuality == "unavailable" ? "—" : Fmt.Duration(movingMs / 1000) + (movingQuality == "stale" ? " (last value)" : ""), movingQuality == "stale" ? Ui.Warn : Ui.Text);
+            ShowMetric(climbValue, metrics, "elevationGainM", 1, "0", "m", keyboardTest);
+            ShowMetric(gradeValue, metrics, "slopeFraction", 100, "0.0", "%", false);
             Ui.Status(adapterValue, state == null ? (bridgeRunning() ? "No answer from the bridge" : "Bridge stopped") : adapter == "fresh" ? "Connected" : adapter == "stale" ? "Not responding" : "Waiting for GTA V",
                 adapter == "fresh" ? Ui.Good : adapter == "stale" ? Ui.Warn : Ui.Muted);
-            string modText = mod == "dataReady" ? "Active" : mod == "inactive" ? "Not active" : mod == "initializing" ? "Starting…" : mod == "stopping" ? "Stopping…" : mod == "error" ? "Error" : "—";
+            string modText = keyboardTest ? "Keyboard test (simulated)" : mod == "dataReady" ? "Active" : mod == "inactive" ? "Not active" : mod == "initializing" ? "Starting…" : mod == "stopping" ? "Stopping…" : mod == "error" ? "Error" : "—";
             Ui.Status(modValue, modText, mod == "dataReady" ? Ui.Good : mod == "error" ? Ui.Bad : mod == "inactive" ? Ui.Warn : Ui.Muted);
             string controlText = control == "inControl" ? "In control" : control == "paused" ? "Paused" : control == "loading" ? "Loading" : control == "notInControl" ? "Not in control" : "—";
             Ui.Status(gameValue, controlText, control == "inControl" ? Ui.Good : Ui.Muted);
@@ -315,6 +486,19 @@ namespace GTAVRidingCompanion
             Ui.SetKind(toggle, mod != "dataReady");
             tips.SetToolTip(toggle, toggle.Enabled ? null : !fresh ? Reasons.Text(adapter == "stale" ? "ADAPTER_STALE" : "ADAPTER_ABSENT") : control != "inControl" ? Reasons.Text("GAME_NOT_IN_CONTROL") : Reasons.Text("MOD_TRANSITION_IN_PROGRESS"));
             if (!fresh) { settings = null; ApplySettings(); }
+            UpdateActions();
+        }
+
+        static void ShowMetric(Label label, Dictionary<string, object> metrics, string key, double scale, string format, string unit, bool simulated)
+        {
+            var metric = Json.Obj(metrics, key);
+            double? value = Json.Num(metric, "value");
+            string quality = Json.Str(metric, "quality");
+            bool available = value != null && quality != "unavailable";
+            string text = available ? (value.Value * scale).ToString(format, CultureInfo.InvariantCulture) + " " + unit : "—";
+            if (available && simulated) text += " (simulated)";
+            if (available && quality == "stale") text += " (last value)";
+            Ui.Status(label, text, quality == "stale" || simulated ? Ui.Warn : Ui.Text);
         }
 
         void ApplySettings()
@@ -339,7 +523,7 @@ namespace GTAVRidingCompanion
                     SetChoices(pair.Item1, Json.List(pair.Item2, "options").Select(o => new Choice { Id = Json.Str(o, "id"), Label = Json.Str(o, "label") }).ToList(), Json.Str(pair.Item2, "selectedId"), pair.Item2);
                 UpdateProfileButtons();
             }
-            finally { loading = false; }
+            finally { loading = false; UpdateActions(); }
         }
 
         void SetEnabled(bool enabled)
@@ -559,6 +743,7 @@ namespace GTAVRidingCompanion
             commandRunning = true;
             SetEnabled(false);
             toggle.Enabled = false;
+            UpdateActions();
             Busy(pendingText);
             try
             {

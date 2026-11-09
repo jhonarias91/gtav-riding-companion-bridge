@@ -28,6 +28,8 @@ namespace CompanionBridge.V1
         private GtbikeV1Extensions extensions;
         private GtbikeV1More more;
         private GtbikeV1World world;
+        private GtbikeV1Gears gears;
+        private Func<string, Type> modTypes;
         private readonly GtbikeV1Teleport teleport = new GtbikeV1Teleport(); // P16: PC map right-click, GTA natives only.
         private Dictionary<string, object> lastSnapshot;
         private DateTime nextLookupUtc = DateTime.MinValue;
@@ -41,6 +43,7 @@ namespace CompanionBridge.V1
             Interval = 250;
             Tick += OnTick;
             Aborted += delegate { try { teleport.Abort(); } catch (Exception) { } }; // Script reload: never leave the rider frozen.
+            Aborted += delegate { try { GtbikeV1KeyboardHost.Shared.Abort(); } catch (Exception e) { Log(e); } };
             GtbikeV1Addons.Shared.Error = Log; // P18: the add-ons run on GtbikeV1AddonHost (every frame).
             GtbikeV1Addons.Shared.Load(directory);
         }
@@ -56,6 +59,12 @@ namespace CompanionBridge.V1
             try
             {
                 FindMod(now);
+                if (binding != null && extensions != null && binding.CanSetActive)
+                {
+                    GtbikeV1KeyboardHost.Shared.Bind(modTypes, true, extensions.KeyboardScriptInstance(), Log);
+                    if (gears == null && extensions.KeyboardScriptInstance() != null)
+                        gears = new GtbikeV1Gears(modTypes, true, extensions.KeyboardScriptInstance());
+                }
                 ProcessOneCommand(gameControl, now);
                 snapshot = binding == null ? NotLoaded() : binding.Capture(gameControl, now);
                 if (binding != null && extensions != null && (string)snapshot["binding"] != "incompatible")
@@ -76,6 +85,9 @@ namespace CompanionBridge.V1
                 if (binding != null && extensions != null && (string)snapshot["binding"] != "incompatible")
                 {
                     ((List<string>)snapshot["commands"]).Add("player.teleport");
+                    ((List<string>)snapshot["commands"]).Add("camera.next");
+                    ((List<string>)snapshot["commands"]).Add("camera.setMode");
+                    ((List<string>)snapshot["commands"]).Add("camera.look");
                     ((List<string>)snapshot["commands"]).Add("player.waypoint");
                     ((List<string>)snapshot["commands"]).Add("player.clearWaypoint");
                     ((List<string>)snapshot["commands"]).Add("addons.setEnabled");
@@ -85,6 +97,16 @@ namespace CompanionBridge.V1
                     ((List<string>)snapshot["commands"]).Add("addons.savePlace");
                     ((List<string>)snapshot["commands"]).Add("addons.removePlace");
                 }
+                GtbikeV1KeyboardHost.Shared.Overlay(snapshot);
+                if (gears != null)
+                {
+                    snapshot["trainer"] = gears.Capture(gameControl);
+                    if (gears.Supported)
+                    {
+                        ((List<string>)snapshot["commands"]).Add("gears.shiftUp");
+                        ((List<string>)snapshot["commands"]).Add("gears.shiftDown");
+                    }
+                }
                 // P18: what the add-ons must know (GTBike V active, course loaded, power and cadence), then their report.
                 Dictionary<string, object> addonMetrics = Get(snapshot, "metrics") as Dictionary<string, object>;
                 GtbikeV1Addons.Shared.Context(object.Equals(Get(snapshot, "isDtOk"), true), Get(snapshot, "activeRoute") != null, gameControl,
@@ -93,10 +115,12 @@ namespace CompanionBridge.V1
             catch (Exception e)
             {
                 Log(e);
+                try { GtbikeV1KeyboardHost.Shared.Abort(); } catch (Exception restore) { Log(restore); }
                 binding = null; // Re-resolve on the next lookup instead of trusting a half-broken binding.
                 extensions = null;
                 more = null;
                 world = null;
+                gears = null;
                 snapshot = NotLoaded();
                 snapshot["adapterError"] = e.GetBaseException().GetType().Name;
             }
@@ -104,6 +128,13 @@ namespace CompanionBridge.V1
             snapshot["sequence"] = ++sequence;
             snapshot["capturedAtUtc"] = now.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
             snapshot["gameControl"] = gameControl;
+            try
+            {
+                GtbikeV1CameraNative.Shared.Context(binding != null && binding.CanSetActive && object.Equals(Get(snapshot, "isDtOk"), true),
+                    gameControl, extensions == null ? (Func<bool?>)null : extensions.CameraLookOverride, now);
+                snapshot["camera"] = GtbikeV1CameraNative.Shared.Capture(now);
+            }
+            catch (Exception) { snapshot["camera"] = null; GtbikeV1CameraNative.Shared.Abort(); }
             snapshot["teleport"] = teleport.Report; // Evidence for player.teleport: requestId + running|done|failed.
             try { snapshot["waypoint"] = GtbikeV1Destination.Read(); } // GTA map waypoint + GPS route length (PC map).
             catch (Exception) { snapshot["waypoint"] = null; }
@@ -139,6 +170,7 @@ namespace CompanionBridge.V1
             {
                 if (assembly.GetType("GTBikeV.DataTransceiver", false) == null) continue;
                 Assembly mod = assembly;
+                modTypes = delegate(string name) { return mod.GetType(name, false); };
                 string version = mod.GetName().Version.ToString();
                 binding = new GtbikeV1Binding(delegate(string name) { return mod.GetType(name, false); }, version);
                 extensions = new GtbikeV1Extensions(delegate(string name) { return mod.GetType(name, false); }, version == GtbikeV1Binding.SupportedVersion);
@@ -247,6 +279,13 @@ namespace CompanionBridge.V1
             if (type == "mod.setActive")
             {
                 if (args.Count != 1 || !args.TryGetValue("enabled", out value) || !(value is bool)) return Rejected("INVALID_REQUEST");
+                if (GtbikeV1KeyboardHost.Shared.Active)
+                {
+                    if (gameControl != "inControl") return Rejected("GAME_NOT_IN_CONTROL");
+                    if ((bool)value) return new Dictionary<string, object> { { "status", "noop" }, { "reasonCode", null } };
+                    GtbikeV1KeyboardHost.Shared.RequestStop();
+                    return new Dictionary<string, object> { { "status", "dispatched" }, { "reasonCode", null } };
+                }
                 return binding.SetActive((bool)value, gameControl);
             }
             // P3/P4: the bridge already validated arguments and revisions; the adapter re-checks what only the game knows.
@@ -257,10 +296,18 @@ namespace CompanionBridge.V1
             Dictionary<string, object> metrics = Get(lastSnapshot, "metrics") as Dictionary<string, object>;
             object speed = metrics == null ? null : Get(metrics, "speedMps");
             double? speedMps = speed == null ? (double?)null : Convert.ToDouble(speed, CultureInfo.InvariantCulture);
-            // P18: add-ons check their own preconditions (mod active, in control, no course, on a bicycle).
+            if (type == "camera.next" || type == "camera.setMode" || type == "camera.look")
+                return GtbikeV1CameraNative.Shared.Command(type, id, args, now);
+            if (type == "gears.shiftUp" || type == "gears.shiftDown")
+                return gears == null ? Rejected("CAPABILITY_UNAVAILABLE") : gears.Command(type, id, args, gameControl);
+            // Add-ons replace the current course/mission. Refresh control and bicycle state at execution time.
             if (type == "addons.setEnabled" || type == "addons.configure" || type == "addons.saveSegment" || type == "addons.removeSegment"
                 || type == "addons.savePlace" || type == "addons.removePlace")
-                return GtbikeV1Addons.Shared.Command(type, id, args);
+            {
+                GtbikeV1Addons.Shared.Context(dtOk, Get(lastSnapshot, "activeRoute") != null, gameControl,
+                    Number(Get(metrics, "powerW")), Number(Get(metrics, "cadenceRpm")));
+                return GtbikeV1Addons.Shared.Command(type, id, args, () => extensions.CancelCourseForAddon(dtOk, gameControl));
+            }
             // P16: only the PC window may send it (the bridge refuses phones). Blocked during a course: it would break it,
             // and during an add-on mission: it would skip it.
             if (type == "player.teleport" && GtbikeV1Addons.Shared.BlocksTeleport) return Rejected("VALUE_NOT_ALLOWED");

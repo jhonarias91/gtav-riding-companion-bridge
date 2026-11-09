@@ -2,9 +2,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, pair, command, waitFor } from './support/bridge-v1.mjs';
+import { CAMERA_MODES } from '../bridge/api-v1/camera.mjs';
 
 const desktopToken = 'd'.repeat(43);
 const desktop = { Authorization: `Bearer ${desktopToken}`, 'Content-Type': 'application/json' };
+
+test('the Windows token controls the same observed camera as Android', async t => {
+  const { request, adapter } = await setup(t, { desktopToken });
+  adapter.raw.commands.push('camera.next', 'camera.setMode', 'camera.look');
+  adapter.raw.camera = { reasonCode: null, currentMode: 'near', modes: CAMERA_MODES, headingDeg: 0, pitchDeg: 0, lookReasonCode: null, busy: false };
+  await adapter.write();
+  assert.equal((await (await request('/api/v1/camera', { headers: desktop })).json()).currentMode, 'near');
+  for (const [type, args] of [['camera.setMode', { mode: 'medium' }], ['camera.next', {}], ['camera.look', { headingDeg: 30, pitchDeg: -10 }]]) {
+    const sent = await command(request, desktop, type, args);
+    assert.equal(sent.res.status, 202);
+    assert.equal((await waitFor(request, desktop, sent.requestId)).status, 'applied');
+  }
+  const camera = await (await request('/api/v1/camera', { headers: desktop })).json();
+  assert.equal(camera.currentMode, 'far');
+  assert.equal(camera.headingDeg, 30); assert.equal(camera.pitchDeg, -10);
+});
 
 test('the desktop token reads the raw world position; phones cannot reach /desktop', async t => {
   const { request, adapter } = await setup(t, { desktopToken });

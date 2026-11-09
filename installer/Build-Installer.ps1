@@ -1,4 +1,4 @@
-# Builds outputs\release\GTAVRidingCompanion-Setup.exe in one step:
+﻿# Builds outputs\release\GTAVRidingCompanion-Setup.exe in one step:
 #   dependencies (npm ci when needed) -> tests -> bridge bundle -> payload (Node.js, adapter sources, map) -> setup exe.
 # Easiest: double-click build-installer.cmd in the repository root, or run `npm run build:installer`.
 #   -SkipTests      do not run npm test (faster rebuilds while iterating on the window)
@@ -133,7 +133,7 @@ namespace GTAVRidingCompanion { static class BuildInfo { internal const string V
     $hash = (Get-FileHash -LiteralPath $output -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  GTAVRidingCompanion-Setup.exe" | Set-Content -LiteralPath (Join-Path $OutputDirectory 'GTAVRidingCompanion-Setup.sha256.txt') -Encoding ASCII
     $size = [math]::Round((Get-Item -LiteralPath $output).Length / 1MB, 1)
-    Write-Host "  Installer: $output ($size MB)" -ForegroundColor Green
+    Write-Host "  Installer: $OutputDirectory" -ForegroundColor Green
     Write-Host "  SHA-256:   $hash"
     Write-Host ("  Took {0:0}s. Copy the .exe to the gaming PC and run it; Node.js is not needed there." -f ((Get-Date) - $started).TotalSeconds)
 } finally {

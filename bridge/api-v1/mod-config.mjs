@@ -10,6 +10,7 @@ import { basename, dirname, join } from 'node:path';
 
 const MAX_FILE = 256 * 1024;
 const KEEP_BACKUPS = 10;
+const WRITING_FILES = new Set(); // All allowlisted views of this INI share one write lock.
 const DEFAULT_SERVER = 'multiplayer.gtbikev.com:4499';
 export const TRAFFIC_STYLES = ['NORMAL', 'AGRESSIVE', 'BREAKLAWS']; // Spelled as GTBike V parses them.
 export const BOT_TYPES = [0, 1, 2, 3, 4]; // random, companion, climber, sprinter, time trialer
@@ -157,10 +158,10 @@ export function patchIni(text, entries) {
 }
 
 /** Option values found in the file; null where the line is missing or unreadable (the mod then uses its default). */
-export function readOptions(text) {
+export function readOptions(text, definitions = OPTIONS) {
   const { sections } = parseIni(text);
   const options = {};
-  for (const [name, { key, section = 'main', read }] of Object.entries(OPTIONS)) {
+  for (const [name, { key, section = 'main', read }] of Object.entries(definitions)) {
     const raw = sections.get(section)?.keys.get(key.toLowerCase())?.value;
     const value = raw === undefined ? undefined : read(raw);
     options[name] = value === undefined || (typeof value === 'number' && Number.isNaN(value)) ? null : value;
@@ -184,10 +185,15 @@ export class ModConfigStore {
    * path: GTBikeVConfig.ini (null = unknown); backupDirectory: where copies go before each write;
    * isGameRunning: async () => boolean (process check, plus a fresh adapter in the server).
    */
-  constructor({ path, backupDirectory, isGameRunning = gtaRunning }) {
+  constructor({ path, backupDirectory, isGameRunning = gtaRunning, definitions = OPTIONS, defaults = DEFAULTS, serialize = iniValues, resource = 'modConfig', extra = () => ({}) }) {
     this.path = path;
     this.backupDirectory = backupDirectory;
     this.isGameRunning = isGameRunning;
+    this.definitions = definitions;
+    this.defaults = defaults;
+    this.serialize = serialize;
+    this.resource = resource;
+    this.extra = extra;
     this.writing = false;
   }
 
@@ -208,13 +214,13 @@ export class ModConfigStore {
     let file;
     try { file = await this.readFile(); } catch (e) {
       if (e instanceof ModConfigError && e.code === 'NOT_FOUND') {
-        return { available: false, reasonCode: 'NOT_FOUND', revision: null, gameRunning: running, editable: false, options: null, defaults: DEFAULTS, applyMode: 'nextGameStart' };
+        return { available: false, reasonCode: 'NOT_FOUND', revision: null, gameRunning: running, editable: false, options: null, defaults: this.defaults, applyMode: 'nextGameStart', ...this.extra(null) };
       }
       throw e;
     }
     return {
       available: true, reasonCode: running ? 'GAME_RUNNING' : null, revision: file.revision, gameRunning: running,
-      editable: !running, options: readOptions(file.text), defaults: DEFAULTS, applyMode: 'nextGameStart',
+      editable: !running, options: readOptions(file.text, this.definitions), defaults: this.defaults, applyMode: 'nextGameStart', ...this.extra(file.text),
     };
   }
 
@@ -226,29 +232,30 @@ export class ModConfigStore {
     if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).length === 0) throw new ModConfigError('INVALID_REQUEST', 422, { field: 'options' });
     const clean = {};
     for (const [name, value] of Object.entries(options)) {
-      if (!Object.hasOwn(OPTIONS, name)) throw new ModConfigError('INVALID_REQUEST', 422, { field: name });
-      const checked = OPTIONS[name].check(value);
-      if (checked === undefined) throw new ModConfigError(typeof value === typeof DEFAULTS[name] || Array.isArray(value) ? 'VALUE_OUT_OF_RANGE' : 'INVALID_REQUEST', 422, { field: name });
+      if (!Object.hasOwn(this.definitions, name)) throw new ModConfigError('INVALID_REQUEST', 422, { field: name });
+      const checked = this.definitions[name].check(value);
+      if (checked === undefined) throw new ModConfigError(typeof value === typeof this.defaults[name] || Array.isArray(value) ? 'VALUE_OUT_OF_RANGE' : 'INVALID_REQUEST', 422, { field: name });
       clean[name] = checked;
     }
-    if (this.writing) throw new ModConfigError('BRIDGE_BUSY', 409);
+    if (this.writing || WRITING_FILES.has(this.path)) throw new ModConfigError('BRIDGE_BUSY', 409);
     this.writing = true;
+    WRITING_FILES.add(this.path);
     try {
       if (await this.isGameRunning()) throw new ModConfigError('GAME_RUNNING', 409);
       const current = await this.readFile();
-      if (current.revision !== expectedRevision) throw new ModConfigError('REVISION_CONFLICT', 409, { resource: 'modConfig' });
+      if (current.revision !== expectedRevision) throw new ModConfigError('REVISION_CONFLICT', 409, { resource: this.resource });
       // Options that share an INI key are rewritten from the file's current values plus the changes.
-      const existing = readOptions(current.text);
+      const existing = readOptions(current.text, this.definitions);
       const merged = {};
-      for (const name of OPTION_NAMES) merged[name] = clean[name] ?? existing[name] ?? DEFAULTS[name];
+      for (const name of Object.keys(this.definitions)) merged[name] = clean[name] ?? existing[name] ?? this.defaults[name];
       const server = parseIni(current.text).sections.get('network')?.keys.get('multiplayerserverurl')?.value;
       merged.serverWhenOn = server && server.toUpperCase() !== 'NONE' ? server : DEFAULT_SERVER; // Turning it on restores the official server.
-      const next = encodeIni(patchIni(current.text, iniValues(merged, Object.keys(clean))), current);
+      const next = encodeIni(patchIni(current.text, this.serialize(merged, Object.keys(clean), current.text)), current);
       await this.backup(current.bytes);
       const temp = join(dirname(this.path), `.${basename(this.path)}.${randomUUID()}.tmp`);
       try {
         await writeFile(temp, next, { flag: 'wx' });
-        if ((await this.readFile()).revision !== expectedRevision) throw new ModConfigError('REVISION_CONFLICT', 409, { resource: 'modConfig' });
+        if ((await this.readFile()).revision !== expectedRevision) throw new ModConfigError('REVISION_CONFLICT', 409, { resource: this.resource });
         await rename(temp, this.path);
       } finally {
         await unlink(temp).catch(() => {});
@@ -256,6 +263,7 @@ export class ModConfigStore {
       return { ...(await this.document()), saved: Object.keys(clean) };
     } finally {
       this.writing = false;
+      WRITING_FILES.delete(this.path);
     }
   }
 

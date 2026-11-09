@@ -375,7 +375,8 @@ namespace GTAVRidingCompanion
             renameSegment.Enabled = removeSegment.Enabled = !Busy && SelectedSegment != null;
             renamePlace.Enabled = removePlace.Enabled = !Busy && SelectedPlace != null;
             Tips.SetToolTip(start, addon == null ? null : dirty.Count > 0 ? "Save or discard the changed settings first."
-                : Json.Str(addon, "startReasonCode") != null ? StartHint(Json.Str(addon, "startReasonCode")) : null);
+                : Json.Str(addon, "startReasonCode") != null ? StartHint(Json.Str(addon, "startReasonCode"))
+                : "Starting cancels the current course or other add-on first.");
         }
 
         protected override void OnBusyChanged() { FillEditors(); UpdateButtons(); }

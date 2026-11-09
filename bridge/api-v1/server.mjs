@@ -7,6 +7,9 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NativePairing } from './auth.mjs';
 import { AdapterLink } from './adapter-link.mjs';
+import { toCamera } from './camera.mjs';
+import { toTrainer } from './trainer.mjs';
+import { TrainerConfigStore } from './trainer-config.mjs';
 import { OperationStore, waypointOf } from './operations.mjs';
 import { validateCommand, CommandError, ROLE_SENSOR_TYPES, DESKTOP_ONLY_COMMANDS } from './validate.mjs';
 import packageInfo from '../../package.json' with { type: 'json' };
@@ -16,12 +19,16 @@ import { toMap, toRiders, worldReasons } from './world.mjs';
 import { ModConfigStore, ModConfigError, gtaRunning } from './mod-config.mjs';
 import { toAddons, addonPrecheck, addonPoints, addonSegments, addonPlaces, toProgress } from './addons.mjs';
 
-export const API_MINOR = 14; // 7: P11 BLE, 8: pinned HTTPS, 9: P12 device names, 10: P13 workouts, 11: stable phone ID, 12: P16 PC teleport, 13: P17 PC waypoint, 14: P18 add-ons.
+export const API_MINOR = 17; // 17: allowlisted persistent VirtualGears and native gear shifts.
 // The release version lives in package.json only (the installer reads it too); esbuild inlines it into the bundle.
 export const BRIDGE_VERSION = packageInfo.version;
 const MAX_BODY = 64 * 1024;
 const SERVER_CODES = new Set(['INVALID_REQUEST', 'PAYLOAD_TOO_LARGE', 'AUTH_REQUIRED', 'FORBIDDEN_SCOPE', 'PAIRING_PIN_INVALID', 'PAIRING_PIN_EXPIRED', 'RATE_LIMITED', 'NOT_FOUND', 'ADAPTER_ABSENT', 'ADAPTER_STALE', 'UNSUPPORTED_VERSION', 'CAPABILITY_UNAVAILABLE', 'REVISION_CONFLICT', 'INSTANCE_CHANGED', 'MOD_TRANSITION_IN_PROGRESS', 'GAME_NOT_IN_CONTROL', 'DEVICE_CHANGED', 'WORKOUT_PC_CONTROL_REQUIRED', 'SAVE_TOO_SHORT', 'OPERATION_UNKNOWN', 'FIT_INVALID', 'ASSET_UNAVAILABLE', 'MOD_INACTIVE', 'MOD_NOT_LOADED', 'PANEL_CLOSED', 'RIDER_MOVING', 'AUTOPILOT_ON', 'VALUE_OUT_OF_RANGE', 'VALUE_NOT_ALLOWED', 'BRIDGE_BUSY', 'GAME_RUNNING', 'RIDER_NOT_ON_BIKE', 'ADDON_NO_POINTS', 'ADDON_BUSY', 'INTERNAL']);
+SERVER_CODES.add('CAMERA_CONTROL_IN_USE');
+SERVER_CODES.add('GEARS_DISABLED');
+SERVER_CODES.add('GEAR_LIMIT');
 const STATUS = {
+  CAMERA_CONTROL_IN_USE: 409,
   ADAPTER_ABSENT: 503, ADAPTER_STALE: 503, GAME_NOT_IN_CONTROL: 503, MOD_INACTIVE: 503, MOD_NOT_LOADED: 503,
   RIDER_NOT_ON_BIKE: 409, ADDON_NO_POINTS: 409, ADDON_BUSY: 409,
   UNSUPPORTED_VERSION: 501, CAPABILITY_UNAVAILABLE: 501, PHASE_NOT_AVAILABLE: 501,
@@ -105,6 +112,7 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
   // P15: GTA V counts as running when its process exists or the adapter still reports fresh data.
   const gameConfig = new ModConfigStore({ path: modConfig.path ?? null, backupDirectory: join(stateDirectory, 'mod-config-backups'),
     isGameRunning: modConfig.isGameRunning ?? (async () => (await link.snapshot())?.fresh === true || await gtaRunning()) });
+  const trainerConfig = new TrainerConfigStore({ path: gameConfig.path, backupDirectory: gameConfig.backupDirectory, isGameRunning: gameConfig.isGameRunning });
   let lastFreshState = null;
   let busy = false;
 
@@ -162,6 +170,8 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
     if (reason) return [reason];
     const a = command.args;
     switch (command.type) {
+      case 'camera.setMode':
+        return toCamera(snap).modes.includes(a.mode) ? null : ['VALUE_NOT_ALLOWED', { field: 'mode' }];
       case 'routes.apply':
       case 'routes.preview': {
         if (!catalog || command.expectedRevision !== catalog.catalogRevision) return ['REVISION_CONFLICT', { resource: 'catalog' }];
@@ -310,12 +320,13 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
         return send(res, 204, null);
       }
       if (route === 'POST /api/v1/commands') return await handleCommand(req, res, desktop);
-      if (path === '/api/v1/mod-config' && (req.method === 'GET' || req.method === 'POST')) {
+      if ((path === '/api/v1/mod-config' || path === '/api/v1/trainer-config') && (req.method === 'GET' || req.method === 'POST')) {
         try {
-          if (req.method === 'GET') return send(res, 200, await gameConfig.document());
+          const store = path === '/api/v1/trainer-config' ? trainerConfig : gameConfig;
+          if (req.method === 'GET') return send(res, 200, await store.document());
           let body;
           try { body = await readBody(req); } catch (e) { return fail(res, e.code ?? 'INVALID_REQUEST', e.status ?? 400); }
-          return send(res, 200, await gameConfig.update(body));
+          return send(res, 200, await store.update(body));
         } catch (e) {
           if (e instanceof ModConfigError) return fail(res, e.code, e.status, { details: e.details });
           throw e;
@@ -339,6 +350,8 @@ export async function createBridgeV1({ adapterDirectory, stateDirectory, world, 
 
       const docs = await documents();
       if (path === '/api/v1/state') return send(res, 200, docs.state);
+      if (path === '/api/v1/camera') return send(res, 200, toCamera(docs.snap));
+      if (path === '/api/v1/trainer') return send(res, 200, toTrainer(docs.snap));
       if (path === '/api/v1/capabilities') {
         const folder = (await library.root()) ? null : 'CAPABILITY_UNAVAILABLE';
         const config = await gameConfig.document().catch(() => null);

@@ -15,9 +15,9 @@ export const fixtures = join(root, 'bridge', 'fixtures', 'v1');
 export const readJson = async p => JSON.parse(await readFile(p, 'utf8'));
 
 export async function schemas() {
-  const ajv = new Ajv2020({ strict: true, strictTypes: false, allErrors: true });
+  const ajv = new Ajv2020({ strict: true, strictTypes: false, allErrors: true, multipleOfPrecision: 8 });
   const ids = {};
-  for (const name of ['common', 'hello', 'capabilities', 'state', 'command', 'operation', 'error', 'routes', 'route-preview', 'settings', 'devices', 'workouts', 'activities', 'map', 'riders', 'mod-config', 'addons', 'progress']) {
+  for (const name of ['common', 'hello', 'capabilities', 'state', 'command', 'operation', 'error', 'routes', 'route-preview', 'settings', 'devices', 'workouts', 'activities', 'map', 'riders', 'mod-config', 'addons', 'progress', 'camera', 'trainer', 'trainer-config']) {
     const s = await readJson(join(contracts, `${name}.schema.json`));
     ajv.addSchema(s);
     ids[name] = s.$id;
@@ -187,6 +187,20 @@ export class FakeAdapter {
 
   apply(cmd) {
     const a = cmd.args;
+    if (cmd.type === 'gears.shiftUp' || cmd.type === 'gears.shiftDown') {
+      const t = this.raw.trainer;
+      this.gearShifts = (this.gearShifts ?? 0) + 1;
+      t.gear += cmd.type === 'gears.shiftUp' ? 1 : -1;
+      t.ratio = t.gear;
+      t.command = { requestId: cmd.requestId, status: 'done', gear: t.gear, mode: t.mode };
+    }
+    if (cmd.type.startsWith('camera.')) {
+      const c = this.raw.camera;
+      if (cmd.type === 'camera.next') { this.cameraPulses = (this.cameraPulses ?? 0) + 1; c.currentMode = c.currentMode === 'near' ? 'medium' : 'far'; }
+      if (cmd.type === 'camera.setMode') c.currentMode = a.mode;
+      if (cmd.type === 'camera.look') { c.headingDeg = a.headingDeg; c.pitchDeg = a.pitchDeg; }
+      c.command = { requestId: cmd.requestId, status: 'done', mode: c.currentMode, headingDeg: c.headingDeg, pitchDeg: c.pitchDeg };
+    }
     const s = this.raw.settings;
     if (cmd.type === 'mod.setActive') { this.raw.isDtOk = a.enabled; this.raw.modLayer = a.enabled ? 'dataReady' : 'inactive'; }
     if (cmd.type === 'routes.apply') { this.raw.activeRoute = a.routeId === null ? null : { id: a.routeId, loop: a.loop, reverse: a.reverse }; if (a.routeId !== null) this.generation++; }
@@ -225,6 +239,14 @@ export class FakeAdapter {
     if (cmd.type === 'addons.removeSegment') this.raw.addons.ghost.segments = this.raw.addons.ghost.segments.filter(x => x.id !== a.segmentId);
     if (cmd.type === 'addons.setEnabled') {
       const addon = this.raw.addons[a.addonId];
+      if (a.enabled) {
+        // A mode switch clears native course guidance and stops the previous mission before starting the next.
+        this.raw.activeRoute = null;
+        for (const [id, previous] of Object.entries(this.raw.addons)) {
+          if (id !== a.addonId && ['preparing', 'running'].includes(previous.state))
+            this.apply({ ...cmd, args: { addonId: id, enabled: false } });
+        }
+      }
       if (a.enabled && this.addonStart === 'noPoints') Object.assign(addon, { state: 'failed', requestId: cmd.requestId, reasonCode: 'ADDON_NO_POINTS', run: null,
         result: { outcome: 'noPoints', finishedAtUtc: new Date().toISOString(), delivered: 0, damaged: 0, packagesTotal: addon.params.packages, score: 0, elapsedS: 0 } });
       else if (a.enabled && a.addonId === 'discover') Object.assign(addon, { state: 'running', requestId: cmd.requestId, reasonCode: null, result: null,

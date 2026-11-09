@@ -13,9 +13,9 @@ namespace GTAVRidingCompanion
 {
     sealed class MainForm : Form
     {
-        readonly TabControl tabs = new TabControl { Dock = DockStyle.Fill, Padding = new Point(18, 6) };
-        readonly TabPage phoneTab = new TabPage("Phone"), modTab = new TabPage("Mod"), routesTab = new TabPage("Routes"), trainingTab = new TabPage("Training"),
-            sensorsTab = new TabPage("Sensors"), activitiesTab = new TabPage("Activities"), addonsTab = new TabPage("Add-ons"), optionsTab = new TabPage("Game options"), setupTab = new TabPage("Setup"), webTab = new TabPage("Web");
+        readonly TabControl tabs = new TabControl { Dock = DockStyle.Fill, Padding = new Point(18, 6), Multiline = true };
+        readonly TabPage phoneTab = new TabPage("Phone"), modTab = new TabPage("Mod"), cameraTab = new TabPage("Camera"), trainerTab = new TabPage("Virtual gears"), routesTab = new TabPage("Routes"), trainingTab = new TabPage("Training"),
+            sensorsTab = new TabPage("Sensors"), ridersTab = new TabPage("Riders"), activitiesTab = new TabPage("Activities"), addonsTab = new TabPage("Add-ons"), optionsTab = new TabPage("Game options"), diagnosticsTab = new TabPage("Diagnostics"), setupTab = new TabPage("Setup"), webTab = new TabPage("Web");
         readonly Label headerStatus = new Label { AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225), Font = new Font("Segoe UI", 10f), Anchor = AnchorStyles.Right };
         readonly Label footer = new Label { Dock = DockStyle.Fill, ForeColor = Ui.Muted, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0) };
         // Phone tab
@@ -67,17 +67,25 @@ namespace GTAVRidingCompanion
             modPanel = new ModPanel(() => client, () => bridge != null && !bridge.HasExited);
             BuildPhoneTab();
             modTab.Controls.Add(modPanel);
+            panels[cameraTab] = new CameraPanel(() => client);
+            panels[trainerTab] = new TrainerPanel(() => client);
             panels[routesTab] = new RoutesPanel(() => client);
             panels[trainingTab] = new TrainingPanel(() => client);
             panels[sensorsTab] = new SensorsPanel(() => client);
+            panels[ridersTab] = new RidersPanel(() => client);
             panels[activitiesTab] = new ActivitiesPanel(() => client);
             panels[addonsTab] = new AddonsPanel(() => client);
             panels[optionsTab] = new GameOptionsPanel(() => client);
+            panels[diagnosticsTab] = new DiagnosticsPanel(() => client);
             foreach (var pair in panels) pair.Key.Controls.Add(pair.Value);
             BuildSetupTab();
             webPanel = new WebPanel(CurrentBridgeLink, StartBridge, RefreshPairing);
             webTab.Controls.Add(webPanel);
-            tabs.TabPages.AddRange(new[] { phoneTab, modTab, routesTab, trainingTab, sensorsTab, activitiesTab, addonsTab, optionsTab, setupTab, webTab });
+            tabs.TabPages.AddRange(new[] { phoneTab, modTab, cameraTab, trainerTab, routesTab, trainingTab, sensorsTab, ridersTab, activitiesTab, addonsTab, optionsTab, diagnosticsTab, setupTab, webTab });
+            modPanel.NavigateAction = id => {
+                TabPage target = id == "camera" ? cameraTab : id == "gears" ? trainerTab : id == "routes" ? routesTab : id == "training" ? trainingTab : id == "devices" ? sensorsTab : id == "activities" ? activitiesTab : id == "riders" ? ridersTab : id == "addons" ? addonsTab : null;
+                if (target != null) tabs.SelectedTab = target;
+            };
             foreach (TabPage page in tabs.TabPages) page.BackColor = Ui.Surface;
             tabs.SelectedIndexChanged += (s, e) => ActivateTab();
 

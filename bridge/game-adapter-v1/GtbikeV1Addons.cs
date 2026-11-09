@@ -2,9 +2,9 @@
 // Android). Commands arrive on the main adapter script (addons.setEnabled / addons.configure); the add-ons run on
 // GtbikeV1AddonHost, a second script of this assembly with Interval 0, because collisions last a frame and markers
 // and chasers move every frame. SHVDN runs the scripts of one domain one after another, never at once; the lock only
-// documents the shared state. One add-on runs at a time (ADDON_BUSY).
-// Only GTA natives are written. GTBike V is only read: power and cadence come from the snapshot the main script
-// already takes; GTBike V itself reads the game wind and weather (trainer resistance, grip).
+// documents the shared state. Starting an add-on cancels the previous course and stops any other add-on first.
+// Missions use GTA natives. Course cancellation uses the native route selector via the main script; power and
+// cadence come from its snapshot. GTBike V itself reads the game wind and weather (trainer resistance, grip).
 // Add-ons: GtbikeV1Alleycat.cs, GtbikeV1SurvivalSprint.cs, GtbikeV1Ghost.cs, GtbikeV1Discover.cs. Parameter ids, ranges and defaults mirror
 // bridge/api-v1/addons.mjs. C# 5 only (.NET Framework csc).
 using System;
@@ -26,7 +26,14 @@ namespace CompanionBridge.V1
         public GtbikeV1AddonHost()
         {
             Interval = 0;
-            Tick += delegate { GtbikeV1Addons.Shared.Frame(); };
+            Tick += delegate {
+                GtbikeV1KeyboardHost.Shared.Watchdog();
+                GtbikeV1Addons.Shared.Frame();
+                try { GtbikeV1CameraNative.Shared.Frame(DateTime.UtcNow); }
+                catch (Exception) { GtbikeV1CameraNative.Shared.Abort(); }
+            };
+            Aborted += delegate { GtbikeV1CameraNative.Shared.Abort(); };
+            Aborted += delegate { GtbikeV1KeyboardHost.Shared.Abort(); };
             Aborted += delegate { GtbikeV1Addons.Shared.Shutdown(); }; // Script reload: undo weather, wind, blips, vehicles.
         }
     }
@@ -272,7 +279,7 @@ namespace CompanionBridge.V1
             }
         }
 
-        public Dictionary<string, object> Command(string type, string requestId, Dictionary<string, object> args)
+        public Dictionary<string, object> Command(string type, string requestId, Dictionary<string, object> args, Func<string> cancelCourse)
         {
             lock (gate)
             {
@@ -285,11 +292,21 @@ namespace CompanionBridge.V1
                     if (args.Count != 2 || !(Get(args, "enabled") is bool)) return Ack("rejected", "INVALID_REQUEST");
                     if (!(bool)Get(args, "enabled")) return addon.Stop() ? Ack("dispatched", null) : Ack("noop", null);
                     if (addon.Active) return Ack("noop", null);
-                    if (Running() != null) return Ack("rejected", "ADDON_BUSY");
                     if (!context.ModActive) return Ack("rejected", "MOD_INACTIVE");
                     if (context.GameControl != "inControl") return Ack("rejected", "GAME_NOT_IN_CONTROL");
-                    if (context.CourseLoaded && !addon.AllowedDuringCourse) return Ack("rejected", "VALUE_NOT_ALLOWED");
                     if (onBicycle != true) return Ack("rejected", "RIDER_NOT_ON_BIKE");
+                    // Validate first so a refused start leaves the current mission alone. The callback reads the
+                    // live course, clears it through the mod's own handler and verifies it really disappeared.
+                    if (cancelCourse == null) return Ack("rejected", "CAPABILITY_UNAVAILABLE");
+                    string reason = cancelCourse();
+                    if (reason != null) return Ack("rejected", reason);
+                    context.CourseLoaded = false;
+                    foreach (GtbikeV1Addon previous in addons)
+                    {
+                        if (previous == addon) continue;
+                        previous.Stop(); // End removes its GPS route, markers, ghost or chaser before Start.
+                        previous.Shutdown(); // Also remove delayed cleanup left by an already finished run.
+                    }
                     addon.Start(requestId);
                     return Ack("dispatched", null);
                 }
@@ -392,12 +409,6 @@ namespace CompanionBridge.V1
                     try { addon.Shutdown(); } catch (Exception e) { Report(e); }
                 }
             }
-        }
-
-        private GtbikeV1Addon Running()
-        {
-            foreach (GtbikeV1Addon addon in addons) if (addon.Active) return addon;
-            return null;
         }
 
         private void Report(Exception e)

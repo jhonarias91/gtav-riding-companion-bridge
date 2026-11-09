@@ -130,6 +130,8 @@
         "RIDER_NOT_ON_BIKE",
         "ADDON_NO_POINTS",
         "ADDON_BUSY",
+        "GEARS_DISABLED",
+        "GEAR_LIMIT",
         "INTERNAL"
       ]
     }

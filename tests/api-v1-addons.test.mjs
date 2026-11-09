@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setup, pair, command, waitFor, schemas, root } from './support/bridge-v1.mjs';
-import { ADDONS } from '../bridge/api-v1/addons.mjs';
+import { ADDONS, addonEvidence } from '../bridge/api-v1/addons.mjs';
 
 const desktopToken = 'd'.repeat(43);
 const desktop = { Authorization: `Bearer ${desktopToken}`, 'Content-Type': 'application/json' };
@@ -120,9 +120,11 @@ test('start preconditions: mod, course, bicycle and revision rules', async t => 
 
   adapter.raw.activeRoute = { id: '35', loop: false, reverse: false };
   await adapter.write();
-  assert.equal(alleycat(await addons(request, phone)).startReasonCode, 'VALUE_NOT_ALLOWED');
-  assert.equal(await start(), 'VALUE_NOT_ALLOWED');
-  adapter.raw.activeRoute = null;
+  assert.equal(alleycat(await addons(request, phone)).startReasonCode, null, 'the course will be cancelled before starting');
+  adapter.raw.commands = adapter.raw.commands.filter(c => c !== 'routes.apply');
+  await adapter.write();
+  assert.equal(await start(), 'CAPABILITY_UNAVAILABLE', 'cannot replace a course without its native clear path');
+  adapter.raw.commands.push('routes.apply');
   adapter.raw.addonContext.onBicycle = false;
   await adapter.write();
   assert.equal(await start(), 'RIDER_NOT_ON_BIKE');
@@ -147,19 +149,20 @@ test('a start that finds no Downtown street points fails with ADDON_NO_POINTS', 
   assert.equal(a.result.outcome, 'noPoints');
 });
 
-test('Survival sprint runs during a course, one add-on at a time, with chase stats and a result', async t => {
+test('Survival sprint replaces a course and another add-on replaces the sprint, with one mission at a time', async t => {
   const { request, adapter } = await setup(t);
   const phone = await pair(request);
   const check = await schemas();
   adapter.raw.activeRoute = { id: '35', loop: false, reverse: false };
   await adapter.write();
   const doc = await addons(request, phone);
-  assert.equal(sprint(doc).startReasonCode, null, 'allowed on a course');
-  assert.equal(alleycat(doc).startReasonCode, 'VALUE_NOT_ALLOWED');
+  assert.equal(sprint(doc).startReasonCode, null, 'can replace the course');
+  assert.equal(alleycat(doc).startReasonCode, null, 'can replace the course');
   assert.deepEqual(sprint(doc).parameters.find(p => p.id === 'chaser').options.map(o => o.id), ['phantomWedge', 'police', 'truck']);
 
   const start = await command(request, phone, 'addons.setEnabled', { addonId: 'survivalSprint', enabled: true }, doc.addonsRevision);
   assert.equal((await waitFor(request, phone, start.requestId)).status, 'applied');
+  assert.equal(adapter.raw.activeRoute, null, 'the previous course has been cancelled');
   const running = await addons(request, phone);
   check('addons', running);
   const run = sprint(running).run;
@@ -169,23 +172,54 @@ test('Survival sprint runs during a course, one add-on at a time, with chase sta
   assert.equal(run.stats.find(s => s.id === 'pedaling').value, true);
   assert.equal(run.stats.find(s => s.id === 'gapM').value, null);
 
-  // Only one add-on at a time.
-  adapter.raw.activeRoute = null;
-  await adapter.write();
-  assert.equal(alleycat(await addons(request, phone)).startReasonCode, 'ADDON_BUSY');
-  const busy = await command(request, phone, 'addons.setEnabled', { addonId: 'alleycat', enabled: true }, running.addonsRevision);
-  assert.equal(busy.body.error.code, 'ADDON_BUSY');
+  // Another add-on is startable; the bridge replaces the current one rather than requiring a manual stop.
+  assert.equal(alleycat(await addons(request, phone)).startReasonCode, null);
   assert.equal((await command(request, phone, 'addons.configure', { addonId: 'survivalSprint', params: { durationMin: 20 } }, running.addonsRevision)).body.error.code, 'VALUE_NOT_ALLOWED');
   const live = await command(request, phone, 'addons.configure', { addonId: 'survivalSprint', params: { targetKmh: 34, coastGraceS: 2 } }, running.addonsRevision);
   assert.equal((await waitFor(request, phone, live.requestId)).status, 'applied');
 
-  const stop = await command(request, phone, 'addons.setEnabled', { addonId: 'survivalSprint', enabled: false });
-  assert.equal((await waitFor(request, phone, stop.requestId)).status, 'applied');
+  const replace = await command(request, phone, 'addons.setEnabled', { addonId: 'alleycat', enabled: true }, (await addons(request, phone)).addonsRevision);
+  assert.equal((await waitFor(request, phone, replace.requestId)).status, 'applied');
   const after = await addons(request, phone);
   check('addons', after);
   assert.equal(sprint(after).result.outcome, 'stopped');
+  assert.equal(sprint(after).state, 'aborted');
+  assert.equal(sprint(after).run, null);
+  assert.equal(alleycat(after).state, 'running');
+  assert.equal(after.addons.filter(a => a.enabled).length, 1);
   assert.deepEqual(sprint(after).result.stats.map(s => s.id), ['survivedS', 'distanceM', 'maxSpeedKmh', 'closestGapM', 'targetKmh']);
   assert.equal(alleycat(after).startReasonCode, null);
+});
+
+test('every add-on replaces a loaded course from both phone and Windows clients', async t => {
+  const { request, adapter } = await setup(t, { desktopToken });
+  const phone = await pair(request);
+  for (const headers of [phone, desktop]) for (const addon of ADDONS) {
+    adapter.raw.activeRoute = { id: '35', loop: false, reverse: false };
+    await adapter.write();
+    const doc = await addons(request, headers);
+    const start = await command(request, headers, 'addons.setEnabled', { addonId: addon.id, enabled: true }, doc.addonsRevision);
+    assert.equal(start.res.status, 202, addon.id);
+    assert.equal((await waitFor(request, headers, start.requestId)).status, 'applied', addon.id);
+    assert.equal(adapter.raw.activeRoute, null, addon.id);
+    const after = await addons(request, headers);
+    assert.deepEqual(after.addons.filter(a => a.enabled).map(a => a.id), [addon.id]);
+  }
+});
+
+test('start evidence waits for the previous course and mission to disappear', () => {
+  const args = { addonId: 'alleycat', enabled: true };
+  const base = { requestId: 'new-run' };
+  const raw = { activeRoute: { id: '35' }, addons: {
+    alleycat: { state: 'running', requestId: 'new-run' },
+    discover: { state: 'running', requestId: 'old-run' },
+  } };
+  const observe = () => addonEvidence('addons.setEnabled', args, base, { fresh: true, raw });
+  assert.equal(observe(), null);
+  raw.activeRoute = null;
+  assert.equal(observe(), null);
+  raw.addons.discover.state = 'aborted';
+  assert.equal(observe().status, 'applied');
 });
 
 test('ghost segments are saved, renamed, moved and removed from the PC map; the mode shows the nearest start', async t => {
@@ -289,12 +323,11 @@ test('Discover: places from the PC map, XP progress, and the hidden spot never l
   // Running: only the hint, never where the spot is or which place it is.
   adapter.raw.activeRoute = { id: '35', loop: false, reverse: false };
   await adapter.write();
-  assert.equal(discover(await addons(request, phone)).startReasonCode, 'VALUE_NOT_ALLOWED', 'free ride only');
-  adapter.raw.activeRoute = null;
-  await adapter.write();
+  assert.equal(discover(await addons(request, phone)).startReasonCode, null, 'the course is cancelled automatically');
   const start = await command(request, phone, 'addons.setEnabled', { addonId: 'discover', enabled: true }, doc.addonsRevision);
   assert.equal((await waitFor(request, phone, start.requestId)).status, 'applied');
   doc = await addons(request, phone);
+  assert.equal(adapter.raw.activeRoute, null, 'Discover removed the previous course');
   check('addons', doc);
   const run = discover(doc).run;
   assert.equal(run.phase, 'searching');
